@@ -27,13 +27,39 @@ def test_wrapper_reports_partial_for_protected_components():
 def test_wrapper_uses_process_exit_code_not_native_stderr_as_failure_signal():
     text = WRAPPER.read_text(encoding="ascii")
     lowered = text.lower()
-    assert 'start-process' in lowered
-    assert '-redirectstandardoutput' in lowered
-    assert '-redirectstandarderror' in lowered
-    assert '$childprocess.exitcode' in lowered
-    assert '$output = @(& powershell' not in lowered
+    assert "start-process" in lowered
+    assert "-redirectstandardoutput" in lowered
+    assert "-redirectstandarderror" in lowered
+    assert "$childprocess.exitcode" in lowered
+    assert "$output = @(& powershell" not in lowered
     assert re.search(r"}\s*elseif\s*\(", lowered)
     assert not re.search(r"}\s*elif\s*\(", lowered)
+
+
+def test_wrapper_isolates_sync_component_return_contract():
+    text = WRAPPER.read_text(encoding="ascii")
+    assert "$SyncItems = @(Sync-Component" in text
+    assert "$Sync = $SyncItems[-1]" in text
+    assert "SYNC_COMPONENT_RETURN_EMPTY" in text
+    assert "SYNC_COMPONENT_CONTRACT_INVALID" in text
+    assert "SYNC_RETURN_CONTRACT_PATCH=PASS" in text
+
+
+def test_wrapper_isolates_venv_install_return_contract():
+    text = WRAPPER.read_text(encoding="ascii")
+    assert "$VenvItems = @(Ensure-VenvAndInstall" in text
+    assert "$VenvPython = [string]$VenvItems[-1]" in text
+    assert "VENV_INSTALL_RETURN_EMPTY" in text
+    assert "VENV_INSTALL_CONTRACT_INVALID" in text
+    assert "VENV_RETURN_CONTRACT_PATCH=PASS" in text
+
+
+def test_wrapper_executes_auditable_patched_installer_copy():
+    text = WRAPPER.read_text(encoding="ascii")
+    assert "Install-ClementP0Cascade.patched-" in text
+    assert "Set-Content -LiteralPath $PatchedInstaller" in text
+    assert '"-File", $PatchedInstaller' in text
+    assert "PATCHED_INSTALLER=$PatchedInstaller" in text
 
 
 def test_locator_is_read_only_and_pins_recovered_hashes():
@@ -49,5 +75,5 @@ def test_locator_is_read_only_and_pins_recovered_hashes():
 
 def test_locator_excludes_dependency_and_git_directories():
     text = LOCATOR.read_text(encoding="ascii")
-    for name in ('.venv', 'venv', 'site-packages', '.git', '__pycache__'):
+    for name in (".venv", "venv", "site-packages", ".git", "__pycache__"):
         assert name in text
