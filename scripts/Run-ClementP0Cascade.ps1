@@ -26,6 +26,87 @@ if (-not (Test-Path -LiteralPath $Installer)) {
 }
 New-Item -ItemType Directory -Force -Path $Artifacts | Out-Null
 
+function Enable-SafeGeneratedExcludes {
+    param(
+        [string]$RepoPath,
+        [string]$ComponentId
+    )
+
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoPath ".git"))) {
+        Write-Host "SAFE_GENERATED_PREFLIGHT=$ComponentId NOT_PRESENT"
+        return
+    }
+
+    Push-Location $RepoPath
+    try {
+        $Status = @(& git status --porcelain)
+        if ($Status.Count -eq 0) {
+            Write-Host "SAFE_GENERATED_PREFLIGHT=$ComponentId CLEAN"
+            return
+        }
+
+        $Unsafe = @()
+        foreach ($Line in $Status) {
+            $Text = [string]$Line
+            if ($Text.Length -lt 4 -or -not $Text.StartsWith("?? ")) {
+                $Unsafe += $Text
+                continue
+            }
+
+            $Relative = $Text.Substring(3).Trim()
+            $Normalized = $Relative.Replace("\", "/")
+            $IsEggInfo = $Normalized -match '(^|/)[^/]+\.egg-info(/|$)'
+            $IsBuild = $Normalized -match '(^|/)build(/|$)'
+            $IsDist = $Normalized -match '(^|/)dist(/|$)'
+
+            if (-not ($IsEggInfo -or $IsBuild -or $IsDist)) {
+                $Unsafe += $Text
+            }
+        }
+
+        if ($Unsafe.Count -gt 0) {
+            Write-Host "SAFE_GENERATED_PREFLIGHT=$ComponentId SKIPPED_UNSAFE_DIRTY"
+            Write-Host "UNSAFE_DIRTY_BEGIN"
+            foreach ($Line in $Unsafe) { Write-Host $Line }
+            Write-Host "UNSAFE_DIRTY_END"
+            return
+        }
+
+        $ExcludePath = Join-Path $RepoPath ".git\info\exclude"
+        $Existing = ""
+        if (Test-Path -LiteralPath $ExcludePath) {
+            $Existing = Get-Content -LiteralPath $ExcludePath -Raw
+        }
+
+        foreach ($Pattern in @("*.egg-info/", "build/", "dist/")) {
+            if ($Existing -notmatch [regex]::Escape($Pattern)) {
+                Add-Content -LiteralPath $ExcludePath -Value $Pattern -Encoding ASCII
+                Write-Host "SAFE_GENERATED_EXCLUDE_ADDED=$ComponentId PATTERN=$Pattern"
+            }
+        }
+
+        $After = @(& git status --porcelain)
+        if ($After.Count -gt 0) {
+            Write-Host "SAFE_GENERATED_AFTER_BEGIN"
+            foreach ($Line in $After) { Write-Host $Line }
+            Write-Host "SAFE_GENERATED_AFTER_END"
+            throw "SAFE_GENERATED_EXCLUDE_FAILED=$ComponentId"
+        }
+
+        Write-Host "SAFE_GENERATED_PREFLIGHT=$ComponentId PASS"
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+# Editable installs may have produced untracked setuptools metadata before the
+# updated repository .gitignore is pulled. This preflight never deletes files.
+# It only adds local .git/info/exclude patterns when every dirty entry is known
+# generated metadata. Any tracked or unknown dirty entry remains protected.
+Enable-SafeGeneratedExcludes -RepoPath (Join-Path $Root "CLEMENT_STUDIO_OMNIROUTE") -ComponentId "P0-03"
+Enable-SafeGeneratedExcludes -RepoPath (Join-Path $Root "CLEMENT_STUDIO_ORCHESTRATOR") -ComponentId "P0-04"
+
 # PowerShell functions emit every success-stream object. The installer has two
 # functions that intentionally return one contract value, but native git/pip
 # stdout can precede that value and turn the caller variable into Object[].
