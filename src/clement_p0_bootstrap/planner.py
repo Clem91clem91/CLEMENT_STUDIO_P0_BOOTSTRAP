@@ -9,6 +9,9 @@ class BootstrapManifestError(ValueError):
     pass
 
 
+SUPPORTED_SCHEMA_VERSIONS = {"1.0.0", "1.1.0"}
+
+
 @dataclass(frozen=True)
 class Component:
     id: str
@@ -21,8 +24,9 @@ class Component:
 
 def load_manifest(path: str | Path) -> tuple[Path, tuple[Component, ...]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    if data.get("schema_version") != "1.0.0":
-        raise BootstrapManifestError("unsupported schema_version")
+    schema_version = str(data.get("schema_version") or "")
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        raise BootstrapManifestError(f"unsupported schema_version: {schema_version}")
     root = Path(data.get("root") or "")
     raw_components = data.get("components")
     if not isinstance(raw_components, list) or not raw_components:
