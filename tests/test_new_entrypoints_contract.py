@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WRAPPER = ROOT / "scripts" / "Run-ClementP0Cascade.ps1"
 LOCATOR = ROOT / "scripts" / "Find-P001AuditEvidence.ps1"
+GITIGNORE = ROOT / ".gitignore"
 
 
 def test_new_powershell_entrypoints_are_ascii():
@@ -54,6 +55,17 @@ def test_wrapper_isolates_venv_install_return_contract():
     assert "VENV_RETURN_CONTRACT_PATCH=PASS" in text
 
 
+def test_wrapper_isolates_bootstrap_self_test_venv_contract():
+    text = WRAPPER.read_text(encoding="ascii")
+    assert "$BootstrapVenvItems = @(Ensure-VenvAndInstall" in text
+    assert "$BootstrapVenv = [string]$BootstrapVenvItems[-1]" in text
+    assert "BOOTSTRAP_VENV_RETURN_EMPTY" in text
+    assert "BOOTSTRAP_VENV_CONTRACT_INVALID_VALUE" in text
+    assert "BOOTSTRAP_VENV_RETURN_CONTRACT_PATCH=PASS" in text
+    assert "CASCADE_PATCH_POINT_NOT_FOUND=BOOTSTRAP_VENV" in text
+    assert "CASCADE_PATCH_FAILED=BOOTSTRAP_VENV" in text
+
+
 def test_wrapper_executes_auditable_patched_installer_copy():
     text = WRAPPER.read_text(encoding="ascii")
     assert "Install-ClementP0Cascade.patched-" in text
@@ -82,6 +94,12 @@ def test_wrapper_safe_generated_preflight_never_deletes_generated_files():
     assert "git clean" not in text
     assert "git reset" not in text
     assert "git checkout" not in text
+
+
+def test_bootstrap_ignores_editable_build_metadata():
+    text = GITIGNORE.read_text(encoding="utf-8")
+    for pattern in ("*.egg-info/", "build/", "dist/"):
+        assert pattern in text
 
 
 def test_locator_is_read_only_and_pins_recovered_hashes():
