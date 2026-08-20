@@ -25,3 +25,19 @@ jobs:
         run: python -m compileall -q src tests
       - name: Test
         run: python -m pytest
+      - name: Parse cascade installer with Windows PowerShell
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "scripts\Install-ClementP0Cascade.ps1"),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List
+            exit 1
+          }
+          Write-Host "POWERSHELL_PARSE=PASS"
