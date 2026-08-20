@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "root": "C:\\Users\\Shadow\\Documents\\CLEMENT_STUDIO\\04_TOOLS",
   "components": [
     {
@@ -8,7 +8,10 @@
       "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_HUB",
       "branch": "feat/p0-skills-hub-parallel",
       "local_dir": "CLEMENT_STUDIO_SKILLS_HUB",
-      "depends_on": []
+      "depends_on": [],
+      "python_project": true,
+      "protected_existing": true,
+      "certifier": "scripts/validate_repository.py"
     },
     {
       "id": "P0-02",
@@ -16,7 +19,10 @@
       "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_MCP",
       "branch": "feat/p0-skills-mcp",
       "local_dir": "CLEMENT_STUDIO_SKILLS_MCP",
-      "depends_on": ["P0-01"]
+      "depends_on": ["P0-01"],
+      "python_project": true,
+      "protected_existing": false,
+      "certifier": "scripts/certify_shadow.ps1"
     },
     {
       "id": "P0-03",
@@ -24,7 +30,10 @@
       "repository": "Clem91clem91/CLEMENT_STUDIO_OMNIROUTE",
       "branch": "feat/p0-omniroute-certification",
       "local_dir": "CLEMENT_STUDIO_OMNIROUTE",
-      "depends_on": []
+      "depends_on": [],
+      "python_project": true,
+      "protected_existing": false,
+      "certifier": "scripts/certify_shadow.ps1"
     },
     {
       "id": "P0-04",
@@ -32,7 +41,10 @@
       "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
       "branch": "feat/p0-dynamic-orchestrator",
       "local_dir": "CLEMENT_STUDIO_ORCHESTRATOR",
-      "depends_on": ["P0-01", "P0-02", "P0-03"]
+      "depends_on": ["P0-01", "P0-02", "P0-03"],
+      "python_project": true,
+      "protected_existing": false,
+      "certifier": "scripts/certify_shadow.ps1"
     }
   ]
 }
