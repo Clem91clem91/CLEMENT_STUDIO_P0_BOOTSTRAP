@@ -1,32 +1,47 @@
 # CLEMENT_STUDIO_P0_BOOTSTRAP
 
-Installateur maitre des quatre P0 de CLEMENT STUDIO.
+Master installer and certification controller for the four CLEMENT STUDIO P0 components.
 
-## Etat v0.1.0
+## Cascade
 
-Cette premiere tranche est volontairement `DRY-RUN` : elle modelise les dependances et refuse les cycles avant toute future mutation du poste Shadow.
+`P0-01 Skills Hub -> P0-02 Skills MCP -> P0-03 OmniRoute -> P0-04 Dynamic Orchestrator`
 
-Ordre logique :
+P0-03 has no hard dependency on P0-01/P0-02, but the installer keeps a predictable component order. P0-04 requires P0-01, P0-02 and P0-03.
 
-- P0-01 Skills Hub ;
-- P0-02 Skills MCP depend de P0-01 ;
-- P0-03 OmniRoute peut etre certifie en parallele ;
-- P0-04 Dynamic Orchestrator depend de P0-01, P0-02 et P0-03.
+## Guarded installer
 
-## Garanties cibles
+`scripts/Install-ClementP0Cascade.ps1` performs:
 
-- idempotence ;
-- backups avant mutations ;
-- verification des branches et worktrees ;
-- hashes SHA256 ;
-- PASS/PARTIAL/FAIL/INCONCLUSIVE ;
-- aucune suppression ou reset implicite ;
-- aucun merge, tag ou release sans validation utilisateur.
+1. preflight and compatible Python discovery (3.11+);
+2. clone missing repositories under `C:\Users\Shadow\Documents\CLEMENT_STUDIO\04_TOOLS`;
+3. fast-forward-only synchronization of clean repositories;
+4. protection of an existing divergent/dirty P0-01 checkout instead of resetting it;
+5. one `.venv` per P0;
+6. editable package install;
+7. compile and pytest gates;
+8. component certification scripts;
+9. Bootstrap self-test and task log under ignored `artifacts/TASK-*`.
 
-## Developpement
+The installer contains no `git reset`, forced checkout, merge, tag or force-push path.
+
+## Trusted Odysseus registration
+
+`scripts/Register-P002Odysseus.ps1` registers CLEMENT Skills MCP through Odysseus's local `scripts/odysseus-mcp` CLI. It does not disable authentication, kill processes, restart Odysseus, delete a mismatched existing MCP server or alter security settings.
+
+## Standard install
 
 ```powershell
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe -m pytest
+cd "C:\Users\Shadow\Documents\CLEMENT_STUDIO\04_TOOLS\CLEMENT_STUDIO_P0_BOOTSTRAP"
+git pull --ff-only origin feat/p0-bootstrap
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Install-ClementP0Cascade.ps1" -Install -Test -Certify
 ```
+
+## P0-01 materialization
+
+Materialization is opt-in and requires the recovered audit evidence. The installer always executes the importer dry-run before `--apply` and uses the rollback backup root under `Downloads\CLEMENT_P0\P0-01_BACKUPS`.
+
+If the canonical P0-01 checkout is protected because it contains local work or a different branch, materialization is intentionally blocked instead of overwriting it.
+
+## Release gate
+
+No merge, tag or release is performed without explicit user validation.
