@@ -31,7 +31,9 @@ jobs:
         run: |
           $scripts = @(
             "scripts\Install-ClementP0Cascade.ps1",
-            "scripts\Register-P002Odysseus.ps1"
+            "scripts\Run-ClementP0Cascade.ps1",
+            "scripts\Register-P002Odysseus.ps1",
+            "scripts\Find-P001AuditEvidence.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
