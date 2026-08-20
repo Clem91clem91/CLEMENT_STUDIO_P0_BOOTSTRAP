@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "root": "C:\\Users\\Shadow\\Documents\\CLEMENT_STUDIO\\04_TOOLS",
+  "components": [
+    {
+      "id": "P0-01",
+      "name": "CLEMENT_STUDIO_SKILLS_HUB",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_HUB",
+      "branch": "feat/p0-skills-hub-parallel",
+      "local_dir": "CLEMENT_STUDIO_SKILLS_HUB",
+      "depends_on": []
+    },
+    {
+      "id": "P0-02",
+      "name": "CLEMENT_STUDIO_SKILLS_MCP",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_MCP",
+      "branch": "feat/p0-skills-mcp",
+      "local_dir": "CLEMENT_STUDIO_SKILLS_MCP",
+      "depends_on": ["P0-01"]
+    },
+    {
+      "id": "P0-03",
+      "name": "CLEMENT_STUDIO_OMNIROUTE",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_OMNIROUTE",
+      "branch": "feat/p0-omniroute-certification",
+      "local_dir": "CLEMENT_STUDIO_OMNIROUTE",
+      "depends_on": []
+    },
+    {
+      "id": "P0-04",
+      "name": "CLEMENT_STUDIO_ORCHESTRATOR",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
+      "branch": "feat/p0-dynamic-orchestrator",
+      "local_dir": "CLEMENT_STUDIO_ORCHESTRATOR",
+      "depends_on": ["P0-01", "P0-02", "P0-03"]
+    }
+  ]
+}
