@@ -23,6 +23,18 @@ def test_wrapper_reports_partial_for_protected_components():
     assert "RELEASE_CREATED=NO" in text
 
 
+def test_wrapper_uses_process_exit_code_not_native_stderr_as_failure_signal():
+    text = WRAPPER.read_text(encoding="ascii")
+    lowered = text.lower()
+    assert 'start-process' in lowered
+    assert '-redirectstandardoutput' in lowered
+    assert '-redirectstandarderror' in lowered
+    assert '$childprocess.exitcode' in lowered
+    assert '$output = @(& powershell' not in lowered
+    assert '} elseif (' in lowered
+    assert '} elif (' not in lowered
+
+
 def test_locator_is_read_only_and_pins_recovered_hashes():
     text = LOCATOR.read_text(encoding="ascii")
     assert "23726C8DD8FEA5D79636DF27E6AB8CF55BDE073138D9D5A60B5F7B455C958E49" in text
