@@ -19,16 +19,72 @@ $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $WrapperLog = Join-Path $Artifacts ("cascade-wrapper-{0}.log" -f $Stamp)
 $StdOutLog = Join-Path $Artifacts ("cascade-wrapper-{0}.stdout.log" -f $Stamp)
 $StdErrLog = Join-Path $Artifacts ("cascade-wrapper-{0}.stderr.log" -f $Stamp)
+$PatchedInstaller = Join-Path $Artifacts ("Install-ClementP0Cascade.patched-{0}.ps1" -f $Stamp)
 
 if (-not (Test-Path -LiteralPath $Installer)) {
     throw "CASCADE_INSTALLER_NOT_FOUND=$Installer"
 }
 New-Item -ItemType Directory -Force -Path $Artifacts | Out-Null
 
+# PowerShell functions emit every success-stream object. The installer has two
+# functions that intentionally return one contract value, but native git/pip
+# stdout can precede that value and turn the caller variable into Object[].
+# Build a temporary, auditable execution copy that isolates the final contract
+# object/path while preserving preceding command output on the host.
+$InstallerSource = Get-Content -LiteralPath $Installer -Raw
+
+$OriginalSync = '        $Sync = Sync-Component -Component $Component -Destination $Destination'
+$ReplacementSync = @'
+        $SyncItems = @(Sync-Component -Component $Component -Destination $Destination)
+        if ($SyncItems.Count -lt 1) { throw "SYNC_COMPONENT_RETURN_EMPTY=$($Component.id)" }
+        if ($SyncItems.Count -gt 1) {
+            $SyncItems[0..($SyncItems.Count - 2)] | ForEach-Object { Write-Host $_ }
+        }
+        $Sync = $SyncItems[-1]
+        if (-not ($Sync.PSObject.Properties.Name -contains "Protected")) {
+            throw "SYNC_COMPONENT_CONTRACT_INVALID=$($Component.id)"
+        }
+'@
+
+$OriginalVenv = '                $VenvPython = Ensure-VenvAndInstall -RepoPath $Destination -BasePython $BasePython'
+$ReplacementVenv = @'
+                $VenvItems = @(Ensure-VenvAndInstall -RepoPath $Destination -BasePython $BasePython)
+                if ($VenvItems.Count -lt 1) { throw "VENV_INSTALL_RETURN_EMPTY=$($Component.id)" }
+                if ($VenvItems.Count -gt 1) {
+                    $VenvItems[0..($VenvItems.Count - 2)] | ForEach-Object { Write-Host $_ }
+                }
+                $VenvPython = [string]$VenvItems[-1]
+                if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
+                    throw "VENV_INSTALL_CONTRACT_INVALID=$($Component.id)_VALUE=$VenvPython"
+                }
+'@
+
+if (-not $InstallerSource.Contains($OriginalSync)) {
+    throw "CASCADE_PATCH_POINT_NOT_FOUND=SYNC_COMPONENT"
+}
+if (-not $InstallerSource.Contains($OriginalVenv)) {
+    throw "CASCADE_PATCH_POINT_NOT_FOUND=VENV_INSTALL"
+}
+
+$ExecutionSource = $InstallerSource.Replace($OriginalSync, $ReplacementSync)
+$ExecutionSource = $ExecutionSource.Replace($OriginalVenv, $ReplacementVenv)
+
+if ($ExecutionSource.Contains($OriginalSync)) {
+    throw "CASCADE_PATCH_FAILED=SYNC_COMPONENT"
+}
+if ($ExecutionSource.Contains($OriginalVenv)) {
+    throw "CASCADE_PATCH_FAILED=VENV_INSTALL"
+}
+
+Set-Content -LiteralPath $PatchedInstaller -Value $ExecutionSource -Encoding ASCII
+Write-Host "EXECUTION_INSTALLER=$PatchedInstaller"
+Write-Host "SYNC_RETURN_CONTRACT_PATCH=PASS"
+Write-Host "VENV_RETURN_CONTRACT_PATCH=PASS"
+
 $ChildArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
-    "-File", $Installer,
+    "-File", $PatchedInstaller,
     "-Root", $Root
 )
 if ($Install.IsPresent) { $ChildArgs += "-Install" }
@@ -45,10 +101,10 @@ Write-Host "============================================================"
 Write-Host "CLEMENT - P0 CASCADE MASTER WRAPPER"
 Write-Host "============================================================"
 
-# Do not invoke the child with `2>&1` under ErrorActionPreference=Stop.
-# Windows PowerShell 5.1 wraps native stderr records (for example normal Git
-# progress such as `From https://github.com/...`) as NativeCommandError.  A
-# successful child can therefore look like a wrapper failure.  Start-Process
+# Do not invoke the child with 2>&1 under ErrorActionPreference=Stop.
+# Windows PowerShell 5.1 can wrap native stderr records (for example normal Git
+# progress such as From https://github.com/...) as NativeCommandError. A
+# successful child can therefore look like a wrapper failure. Start-Process
 # keeps stdout/stderr as raw files and makes the process exit code authoritative.
 Remove-Item -LiteralPath $StdOutLog, $StdErrLog -Force -ErrorAction SilentlyContinue
 
@@ -96,6 +152,7 @@ if ($ExitCode -ne 0) {
     Write-Host "WRAPPER_LOG=$WrapperLog"
     Write-Host "STDOUT_LOG=$StdOutLog"
     Write-Host "STDERR_LOG=$StdErrLog"
+    Write-Host "PATCHED_INSTALLER=$PatchedInstaller"
     Write-Host "============================================================"
     exit $ExitCode
 }
@@ -119,6 +176,7 @@ Write-Host "PROTECTED_COMPONENT_EVENTS=$($Protected.Count)"
 Write-Host "WRAPPER_LOG=$WrapperLog"
 Write-Host "STDOUT_LOG=$StdOutLog"
 Write-Host "STDERR_LOG=$StdErrLog"
+Write-Host "PATCHED_INSTALLER=$PatchedInstaller"
 Write-Host "MERGE_EXECUTED=NO"
 Write-Host "TAG_CREATED=NO"
 Write-Host "RELEASE_CREATED=NO"
