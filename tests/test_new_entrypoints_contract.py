@@ -62,6 +62,28 @@ def test_wrapper_executes_auditable_patched_installer_copy():
     assert "PATCHED_INSTALLER=$PatchedInstaller" in text
 
 
+def test_wrapper_tolerates_only_known_untracked_generated_metadata():
+    text = WRAPPER.read_text(encoding="ascii")
+    assert "Enable-SafeGeneratedExcludes" in text
+    assert '$Text.StartsWith("?? ")' in text
+    assert '"*.egg-info/"' in text
+    assert '"build/"' in text
+    assert '"dist/"' in text
+    assert '.git\\info\\exclude' in text
+    assert "SKIPPED_UNSAFE_DIRTY" in text
+    assert "SAFE_GENERATED_EXCLUDE_FAILED" in text
+
+
+def test_wrapper_safe_generated_preflight_never_deletes_generated_files():
+    text = WRAPPER.read_text(encoding="ascii").lower()
+    assert "remove-item" in text  # wrapper logs are intentionally rotated
+    for generated in ("egg-info", "build", "dist"):
+        assert not re.search(rf"remove-item[^\n]*{generated}", text)
+    assert "git clean" not in text
+    assert "git reset" not in text
+    assert "git checkout" not in text
+
+
 def test_locator_is_read_only_and_pins_recovered_hashes():
     text = LOCATOR.read_text(encoding="ascii")
     assert "23726C8DD8FEA5D79636DF27E6AB8CF55BDE073138D9D5A60B5F7B455C958E49" in text
