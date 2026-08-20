@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -31,8 +32,8 @@ def test_wrapper_uses_process_exit_code_not_native_stderr_as_failure_signal():
     assert '-redirectstandarderror' in lowered
     assert '$childprocess.exitcode' in lowered
     assert '$output = @(& powershell' not in lowered
-    assert '} elseif (' in lowered
-    assert '} elif (' not in lowered
+    assert re.search(r"}\s*elseif\s*\(", lowered)
+    assert not re.search(r"}\s*elif\s*\(", lowered)
 
 
 def test_locator_is_read_only_and_pins_recovered_hashes():
