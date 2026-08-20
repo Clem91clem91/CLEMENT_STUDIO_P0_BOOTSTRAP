@@ -107,9 +107,8 @@ function Enable-SafeGeneratedExcludes {
 Enable-SafeGeneratedExcludes -RepoPath (Join-Path $Root "CLEMENT_STUDIO_OMNIROUTE") -ComponentId "P0-03"
 Enable-SafeGeneratedExcludes -RepoPath (Join-Path $Root "CLEMENT_STUDIO_ORCHESTRATOR") -ComponentId "P0-04"
 
-# PowerShell functions emit every success-stream object. The installer has two
-# functions that intentionally return one contract value, but native git/pip
-# stdout can precede that value and turn the caller variable into Object[].
+# PowerShell functions emit every success-stream object. Native git/pip stdout
+# can therefore contaminate a caller variable that expects one contract value.
 # Build a temporary, auditable execution copy that isolates the final contract
 # object/path while preserving preceding command output on the host.
 $InstallerSource = Get-Content -LiteralPath $Installer -Raw
@@ -140,15 +139,32 @@ $ReplacementVenv = @'
                 }
 '@
 
+$OriginalBootstrapVenv = '    $BootstrapVenv = Ensure-VenvAndInstall -RepoPath $BootstrapRoot -BasePython $BasePython'
+$ReplacementBootstrapVenv = @'
+    $BootstrapVenvItems = @(Ensure-VenvAndInstall -RepoPath $BootstrapRoot -BasePython $BasePython)
+    if ($BootstrapVenvItems.Count -lt 1) { throw "BOOTSTRAP_VENV_RETURN_EMPTY" }
+    if ($BootstrapVenvItems.Count -gt 1) {
+        $BootstrapVenvItems[0..($BootstrapVenvItems.Count - 2)] | ForEach-Object { Write-Host $_ }
+    }
+    $BootstrapVenv = [string]$BootstrapVenvItems[-1]
+    if (-not (Test-Path -LiteralPath $BootstrapVenv -PathType Leaf)) {
+        throw "BOOTSTRAP_VENV_CONTRACT_INVALID_VALUE=$BootstrapVenv"
+    }
+'@
+
 if (-not $InstallerSource.Contains($OriginalSync)) {
     throw "CASCADE_PATCH_POINT_NOT_FOUND=SYNC_COMPONENT"
 }
 if (-not $InstallerSource.Contains($OriginalVenv)) {
     throw "CASCADE_PATCH_POINT_NOT_FOUND=VENV_INSTALL"
 }
+if (-not $InstallerSource.Contains($OriginalBootstrapVenv)) {
+    throw "CASCADE_PATCH_POINT_NOT_FOUND=BOOTSTRAP_VENV"
+}
 
 $ExecutionSource = $InstallerSource.Replace($OriginalSync, $ReplacementSync)
 $ExecutionSource = $ExecutionSource.Replace($OriginalVenv, $ReplacementVenv)
+$ExecutionSource = $ExecutionSource.Replace($OriginalBootstrapVenv, $ReplacementBootstrapVenv)
 
 if ($ExecutionSource.Contains($OriginalSync)) {
     throw "CASCADE_PATCH_FAILED=SYNC_COMPONENT"
@@ -156,11 +172,15 @@ if ($ExecutionSource.Contains($OriginalSync)) {
 if ($ExecutionSource.Contains($OriginalVenv)) {
     throw "CASCADE_PATCH_FAILED=VENV_INSTALL"
 }
+if ($ExecutionSource.Contains($OriginalBootstrapVenv)) {
+    throw "CASCADE_PATCH_FAILED=BOOTSTRAP_VENV"
+}
 
 Set-Content -LiteralPath $PatchedInstaller -Value $ExecutionSource -Encoding ASCII
 Write-Host "EXECUTION_INSTALLER=$PatchedInstaller"
 Write-Host "SYNC_RETURN_CONTRACT_PATCH=PASS"
 Write-Host "VENV_RETURN_CONTRACT_PATCH=PASS"
+Write-Host "BOOTSTRAP_VENV_RETURN_CONTRACT_PATCH=PASS"
 
 $ChildArgs = @(
     "-NoProfile",
