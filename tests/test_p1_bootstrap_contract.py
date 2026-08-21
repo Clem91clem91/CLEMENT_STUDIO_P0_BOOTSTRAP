@@ -19,7 +19,7 @@ def test_p1_manifest_pins_certified_orchestrator_head() -> None:
     assert re.fullmatch(r"[0-9a-f]{40}", data["orchestrator"]["head"])
 
 
-def test_p1_manifest_requires_all_user_visible_gates() -> None:
+def test_p1_manifest_requires_real_evidence_and_final_aliases() -> None:
     data = json.loads(MANIFEST.read_text(encoding="utf-8-sig"))
     required = set(data["required_markers"])
     assert {
@@ -27,12 +27,21 @@ def test_p1_manifest_requires_all_user_visible_gates() -> None:
         "P1_02=PASS",
         "P1_03=PASS",
         "P1_04=PASS",
+        "P1_01_EXECUTION_FABRIC=PASS",
+        "P1_02_AGENT_RUNTIME=PASS",
+        "P1_03_RESOURCE_GUARD=PASS",
+        "P1_04_OBSERVABILITY=PASS",
+        "P1_REAL_E2E=PASS",
+    } <= required
+    aliases = set(data["final_aliases"])
+    assert {
         "EXECUTION_FABRIC=PASS",
         "AGENT_RUNTIME=PASS",
         "RESOURCE_GUARD=PASS",
         "OBSERVABILITY=PASS",
         "SHADOW_REAL_E2E=PASS",
-    } <= required
+        "GLOBAL_P1=PASS",
+    } <= aliases
 
 
 def test_p1_wrapper_is_fail_closed_and_non_release() -> None:
