@@ -42,6 +42,8 @@ jobs:
         run: python -m pytest
       - name: P1 Bootstrap reference certification
         run: python scripts/certify_p1_bootstrap_reference.py
+      - name: P1.1 Bootstrap reference certification
+        run: python scripts/certify_p1_1_bootstrap_reference.py
       - name: Parse Bootstrap scripts with Windows PowerShell
         if: runner.os == 'Windows'
         shell: powershell
@@ -53,7 +55,9 @@ jobs:
             "scripts\Register-P002Odysseus.ps1",
             "scripts\Find-P001AuditEvidence.ps1",
             "scripts\Apply-P05BranchProtection.ps1",
-            "scripts\Run-P1Certification.ps1"
+            "scripts\Run-P1Certification.ps1",
+            "scripts\Run-P11Certification.ps1",
+            "scripts\Run-P11FinalCertification.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
