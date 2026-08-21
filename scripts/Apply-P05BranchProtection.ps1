@@ -16,12 +16,12 @@ if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
         throw "SCRIPT_PATH_UNAVAILABLE"
     }
 
-    $ScriptDirectory = Split-Path -LiteralPath $ScriptFile -Parent
+    $ScriptDirectory = Split-Path -Path $ScriptFile -Parent
     if ([string]::IsNullOrWhiteSpace($ScriptDirectory)) {
         throw "SCRIPT_DIRECTORY_UNAVAILABLE path=$ScriptFile"
     }
 
-    $RepositoryRoot = Split-Path -LiteralPath $ScriptDirectory -Parent
+    $RepositoryRoot = Split-Path -Path $ScriptDirectory -Parent
     if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
         throw "REPOSITORY_ROOT_UNAVAILABLE script_directory=$ScriptDirectory"
     }
