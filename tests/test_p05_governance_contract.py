@@ -61,11 +61,11 @@ def test_branch_protection_runner_has_dry_run_and_apply_modes() -> None:
 
 def test_branch_protection_runner_resolves_config_after_parameter_binding() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
-    assert "[switch]$ResolveConfigOnly" in text
     assert "[string]$ConfigPath" in text
     assert "[string]$ConfigPath = (" not in text
     assert "$PSCommandPath" in text
     assert "$MyInvocation.MyCommand.Path" in text
+    assert "CLEMENT_P05_RESOLVE_CONFIG_ONLY" in text
     assert "CONFIG_RESOLUTION=PASS" in text
     assert "SCRIPT_PATH_UNAVAILABLE" in text
 
