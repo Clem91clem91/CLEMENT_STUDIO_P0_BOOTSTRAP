@@ -27,6 +27,7 @@ def test_governance_manifest_is_fail_closed() -> None:
 
     protection = payload["branch_protection"]
     assert protection["require_pull_request"] is True
+    assert protection["required_approving_review_count"] == 0
     assert protection["strict_status_checks"] is True
     assert protection["enforce_admins"] is True
     assert protection["required_conversation_resolution"] is True
@@ -50,6 +51,8 @@ def test_branch_protection_runner_has_dry_run_and_apply_modes() -> None:
     assert '"--method", "PUT"' in text
     assert "branches/$Branch/protection" in text
     assert "P0_5_BRANCH_PROTECTION_VERIFIED" in text
+    assert "dismissal_restrictions =" not in text
+    assert "bypass_pull_request_allowances =" not in text
     assert "TAG_CREATED=NO" in text
     assert "RELEASE_CREATED=NO" in text
     assert "/releases" not in text.lower()
