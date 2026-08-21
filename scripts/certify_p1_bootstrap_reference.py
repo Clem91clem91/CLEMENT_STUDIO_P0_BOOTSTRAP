@@ -16,20 +16,33 @@ def main() -> int:
     assert orchestrator["branch"] == "feat/p1-execution-core"
     assert re.fullmatch(r"[0-9a-f]{40}", orchestrator["head"])
     assert orchestrator["head"] == "6329530b787a59c13be9654e189a31a4501dab46"
+
     required = set(data["required_markers"])
-    expected = {
+    expected_real = {
         "P1_01=PASS",
         "P1_02=PASS",
         "P1_03=PASS",
         "P1_04=PASS",
+        "P1_01_EXECUTION_FABRIC=PASS",
+        "P1_02_AGENT_RUNTIME=PASS",
+        "P1_03_RESOURCE_GUARD=PASS",
+        "P1_04_OBSERVABILITY=PASS",
+        "P1_REAL_E2E=PASS",
+    }
+    assert expected_real <= required
+
+    aliases = set(data["final_aliases"])
+    expected_aliases = {
         "EXECUTION_FABRIC=PASS",
         "AGENT_RUNTIME=PASS",
         "RESOURCE_GUARD=PASS",
         "OBSERVABILITY=PASS",
         "SHADOW_REAL_E2E=PASS",
+        "GLOBAL_P1=PASS",
     }
-    assert expected <= required
+    assert expected_aliases <= aliases
     assert set(data["forbidden_operations"]) == {"merge", "tag", "release"}
+
     text = WRAPPER.read_text(encoding="utf-8-sig")
     assert "P1_PIN_HEAD_MISMATCH" in text
     assert "P1_REQUIRED_MARKER_MISSING" in text
@@ -37,6 +50,7 @@ def main() -> int:
     assert "MERGE_EXECUTED=NO" in text
     assert "TAG_CREATED=NO" in text
     assert "RELEASE_CREATED=NO" in text
+
     print("P1_BOOTSTRAP_MANIFEST=PASS")
     print("P1_BOOTSTRAP_PIN=PASS")
     print("P1_BOOTSTRAP_MARKERS=PASS")
