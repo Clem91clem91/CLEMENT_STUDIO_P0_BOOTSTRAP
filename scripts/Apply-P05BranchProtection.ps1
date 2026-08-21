@@ -77,6 +77,8 @@ foreach ($Repo in @($Config.repositories)) {
         )
         Write-Host "BRANCH_EXISTS=PASS"
 
+        # These repositories are personal repositories. GitHub documents
+        # dismissal_restrictions as organization-only, so it is omitted.
         $PayloadObject = [ordered]@{
             required_status_checks = [ordered]@{
                 strict   = [bool]$Protection.strict_status_checks
@@ -84,12 +86,10 @@ foreach ($Repo in @($Config.repositories)) {
             }
             enforce_admins = [bool]$Protection.enforce_admins
             required_pull_request_reviews = [ordered]@{
-                dismissal_restrictions = @{}
                 dismiss_stale_reviews = [bool]$Protection.dismiss_stale_reviews
                 require_code_owner_reviews = [bool]$Protection.require_code_owner_reviews
                 required_approving_review_count = [int]$Protection.required_approving_review_count
                 require_last_push_approval = [bool]$Protection.require_last_push_approval
-                bypass_pull_request_allowances = @{}
             }
             restrictions = $null
             required_linear_history = [bool]$Protection.required_linear_history
