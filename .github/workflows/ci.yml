@@ -54,7 +54,8 @@ jobs:
             "scripts\Find-P001AuditEvidence.ps1",
             "scripts\Apply-P05BranchProtection.ps1",
             "scripts\Run-P1Certification.ps1",
-            "scripts\New-ClementStudioModuleRepos.ps1"
+            "scripts\New-ClementStudioModuleRepos.ps1",
+            "scripts\Apply-ClementStudioModuleTemplates.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
