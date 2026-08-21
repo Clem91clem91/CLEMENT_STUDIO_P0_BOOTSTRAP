@@ -12,11 +12,19 @@
     "P1_02=PASS",
     "P1_03=PASS",
     "P1_04=PASS",
+    "P1_01_EXECUTION_FABRIC=PASS",
+    "P1_02_AGENT_RUNTIME=PASS",
+    "P1_03_RESOURCE_GUARD=PASS",
+    "P1_04_OBSERVABILITY=PASS",
+    "P1_REAL_E2E=PASS"
+  ],
+  "final_aliases": [
     "EXECUTION_FABRIC=PASS",
     "AGENT_RUNTIME=PASS",
     "RESOURCE_GUARD=PASS",
     "OBSERVABILITY=PASS",
-    "SHADOW_REAL_E2E=PASS"
+    "SHADOW_REAL_E2E=PASS",
+    "GLOBAL_P1=PASS"
   ],
   "forbidden_operations": [
     "merge",
