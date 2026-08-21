@@ -1,8 +1,16 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = "Operate")]
 param(
+    [Parameter(ParameterSetName = "Operate")]
     [switch]$Apply,
+
+    [Parameter(ParameterSetName = "Operate")]
     [switch]$IncludeMain,
+
+    [Parameter(Mandatory = $true, ParameterSetName = "Resolve")]
     [switch]$ResolveConfigOnly,
+
+    [Parameter(ParameterSetName = "Operate")]
+    [Parameter(ParameterSetName = "Resolve")]
     [string]$ConfigPath
 )
 
