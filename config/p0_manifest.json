@@ -43,7 +43,7 @@
       "name": "CLEMENT_STUDIO_ORCHESTRATOR",
       "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
       "branch": "feat/p0-dynamic-orchestrator",
-      "expected_head": "a21c08f8242425e0af5883d38f85f3b51515367d",
+      "expected_head": "7cecb4201a516961cfcbf2a66e4e97e7e3621b50",
       "local_dir": "CLEMENT_STUDIO_ORCHESTRATOR",
       "depends_on": ["P0-01", "P0-02", "P0-03"],
       "python_project": true,
