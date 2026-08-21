@@ -59,6 +59,17 @@ def test_branch_protection_runner_has_dry_run_and_apply_modes() -> None:
     assert "/git/tags" not in text.lower()
 
 
+def test_branch_protection_runner_resolves_config_after_parameter_binding() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "[string]$ConfigPath" in text
+    assert "[string]$ConfigPath = (" not in text
+    assert "$PSCommandPath" in text
+    assert "$MyInvocation.MyCommand.Path" in text
+    assert "CLEMENT_P05_RESOLVE_CONFIG_ONLY" in text
+    assert "CONFIG_RESOLUTION=PASS" in text
+    assert "SCRIPT_PATH_UNAVAILABLE" in text
+
+
 def test_governance_document_is_versioned() -> None:
     text = DOC.read_text(encoding="utf-8")
     assert "governance-gate" in text

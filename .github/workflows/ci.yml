@@ -67,6 +67,21 @@ jobs:
             }
             Write-Host "POWERSHELL_PARSE=PASS FILE=$script"
           }
+      - name: Resolve governance config through default powershell -File startup
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $env:CLEMENT_P05_RESOLVE_CONFIG_ONLY = "1"
+          try {
+            powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Apply-P05BranchProtection.ps1"
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "CONFIG_RESOLUTION_REGRESSION"
+              exit $LASTEXITCODE
+            }
+          }
+          finally {
+            Remove-Item Env:\CLEMENT_P05_RESOLVE_CONFIG_ONLY -ErrorAction SilentlyContinue
+          }
 
   governance-gate:
     name: governance-gate

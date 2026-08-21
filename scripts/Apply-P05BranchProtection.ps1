@@ -1,11 +1,35 @@
-[CmdletBinding()]
 param(
     [switch]$Apply,
     [switch]$IncludeMain,
-    [string]$ConfigPath = (Join-Path (Split-Path $PSScriptRoot -Parent) "config\p0_5_governance.json")
+    [string]$ConfigPath
 )
 
 $ErrorActionPreference = "Stop"
+$ResolveConfigOnly = ([string]$env:CLEMENT_P05_RESOLVE_CONFIG_ONLY -eq "1")
+
+if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+    $ScriptFile = [string]$PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($ScriptFile)) {
+        $ScriptFile = [string]$MyInvocation.MyCommand.Path
+    }
+    if ([string]::IsNullOrWhiteSpace($ScriptFile)) {
+        throw "SCRIPT_PATH_UNAVAILABLE"
+    }
+
+    $ScriptDirectory = Split-Path -Path $ScriptFile -Parent
+    if ([string]::IsNullOrWhiteSpace($ScriptDirectory)) {
+        throw "SCRIPT_DIRECTORY_UNAVAILABLE path=$ScriptFile"
+    }
+
+    $RepositoryRoot = Split-Path -Path $ScriptDirectory -Parent
+    if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+        throw "REPOSITORY_ROOT_UNAVAILABLE script_directory=$ScriptDirectory"
+    }
+
+    $ConfigPath = Join-Path -Path $RepositoryRoot -ChildPath "config\p0_5_governance.json"
+}
+
+$ConfigPath = [System.IO.Path]::GetFullPath($ConfigPath)
 
 function Invoke-GhJson {
     param(
@@ -31,11 +55,18 @@ function Invoke-GhJson {
 Write-Host "============================================================"
 Write-Host "CLEMENT - P0.5 BRANCH PROTECTION"
 Write-Host "============================================================"
-Write-Host "MODE=$(if ($Apply) { 'APPLY' } else { 'DRY_RUN' })"
+Write-Host "MODE=$(if ($ResolveConfigOnly) { 'RESOLVE_CONFIG_ONLY' } elseif ($Apply) { 'APPLY' } else { 'DRY_RUN' })"
 Write-Host "CONFIG=$ConfigPath"
 
-if (-not (Test-Path -LiteralPath $ConfigPath)) {
+if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
     throw "CONFIG_NOT_FOUND=$ConfigPath"
+}
+
+if ($ResolveConfigOnly) {
+    Write-Host "CONFIG_RESOLUTION=PASS"
+    Write-Host "TAG_CREATED=NO"
+    Write-Host "RELEASE_CREATED=NO"
+    return
 }
 
 $Gh = Get-Command gh -ErrorAction SilentlyContinue
