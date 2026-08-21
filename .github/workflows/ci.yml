@@ -37,9 +37,11 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
       - name: Compile
-        run: python -m compileall -q src tests
+        run: python -m compileall -q src tests scripts
       - name: Test
         run: python -m pytest
+      - name: P1 Bootstrap reference certification
+        run: python scripts/certify_p1_bootstrap_reference.py
       - name: Parse Bootstrap scripts with Windows PowerShell
         if: runner.os == 'Windows'
         shell: powershell
@@ -50,7 +52,8 @@ jobs:
             "scripts\Run-FinalP0Certification.ps1",
             "scripts\Register-P002Odysseus.ps1",
             "scripts\Find-P001AuditEvidence.ps1",
-            "scripts\Apply-P05BranchProtection.ps1"
+            "scripts\Apply-P05BranchProtection.ps1",
+            "scripts\Run-P1Certification.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
