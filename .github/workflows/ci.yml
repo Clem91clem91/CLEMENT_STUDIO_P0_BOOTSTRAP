@@ -1,10 +1,25 @@
 name: p0-bootstrap-ci
 
 on:
+  workflow_dispatch:
   pull_request:
-    branches: [develop]
+    branches:
+      - main
+      - develop
   push:
-    branches: [feat/p0-bootstrap]
+    branches:
+      - main
+      - develop
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p0-bootstrap-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -34,7 +49,8 @@ jobs:
             "scripts\Run-ClementP0Cascade.ps1",
             "scripts\Run-FinalP0Certification.ps1",
             "scripts\Register-P002Odysseus.ps1",
-            "scripts\Find-P001AuditEvidence.ps1"
+            "scripts\Find-P001AuditEvidence.ps1",
+            "scripts\Apply-P05BranchProtection.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
@@ -51,3 +67,14 @@ jobs:
             }
             Write-Host "POWERSHELL_PARSE=PASS FILE=$script"
           }
+
+  governance-gate:
+    name: governance-gate
+    if: ${{ always() }}
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce CI matrix success
+        shell: bash
+        run: |
+          test "${{ needs.test.result }}" = "success"

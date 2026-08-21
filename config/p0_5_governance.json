@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "phase": "P0.5",
+  "owner": "Clem91clem91",
+  "target_branch": "develop",
+  "required_status_check": "governance-gate",
+  "repositories": [
+    "CLEMENT_STUDIO_SKILLS_HUB",
+    "CLEMENT_STUDIO_SKILLS_MCP",
+    "CLEMENT_STUDIO_OMNIROUTE",
+    "CLEMENT_STUDIO_ORCHESTRATOR",
+    "CLEMENT_STUDIO_P0_BOOTSTRAP"
+  ],
+  "branch_protection": {
+    "require_pull_request": true,
+    "required_approving_review_count": 0,
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false,
+    "require_last_push_approval": false,
+    "require_status_checks": true,
+    "strict_status_checks": true,
+    "enforce_admins": true,
+    "required_conversation_resolution": true,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false
+  },
+  "versioning": {
+    "scheme": "SemVer",
+    "current_baseline": "0.1.0",
+    "tag_format": "vMAJOR.MINOR.PATCH",
+    "release_branch_format": "release/vMAJOR.MINOR.PATCH",
+    "hotfix_branch_format": "hotfix/vMAJOR.MINOR.PATCH",
+    "production_major": "1.0.0",
+    "tag_or_release_requires_explicit_user_authorization": true
+  }
+}
