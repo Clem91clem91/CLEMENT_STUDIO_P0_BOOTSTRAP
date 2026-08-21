@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.1.0",
+  "root": "C:\\Users\\Shadow\\Documents\\CLEMENT_STUDIO\\04_TOOLS",
+  "components": [
+    {
+      "id": "P0-01",
+      "name": "CLEMENT_STUDIO_SKILLS_HUB",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_HUB",
+      "branch": "feat/p0-skills-hub-parallel",
+      "expected_head": "6a62a4215d53c56b2c27f71599d18f9faa2bbfac",
+      "local_dir": "CLEMENT_STUDIO_SKILLS_HUB",
+      "depends_on": [],
+      "python_project": true,
+      "protected_existing": true,
+      "certifier": "scripts/validate_repository.py"
+    },
+    {
+      "id": "P0-02",
+      "name": "CLEMENT_STUDIO_SKILLS_MCP",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_MCP",
+      "branch": "feat/p0-skills-mcp",
+      "expected_head": "6ecd68bc230ca3e65ddfd661897dd5a3160fe4df",
+      "local_dir": "CLEMENT_STUDIO_SKILLS_MCP",
+      "depends_on": ["P0-01"],
+      "python_project": true,
+      "protected_existing": false,
+      "certifier": "scripts/certify_shadow.ps1"
+    },
+    {
+      "id": "P0-03",
+      "name": "CLEMENT_STUDIO_OMNIROUTE",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_OMNIROUTE",
+      "branch": "feat/p0-omniroute-certification",
+      "expected_head": "2b9ca8485d2322378e952d88400ba30767e4b187",
+      "local_dir": "CLEMENT_STUDIO_OMNIROUTE",
+      "depends_on": [],
+      "python_project": true,
+      "protected_existing": false,
+      "certifier": "scripts/certify_shadow.ps1"
+    },
+    {
+      "id": "P0-04",
+      "name": "CLEMENT_STUDIO_ORCHESTRATOR",
+      "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
+      "branch": "feat/p0-dynamic-orchestrator",
+      "expected_head": "7cecb4201a516961cfcbf2a66e4e97e7e3621b50",
+      "local_dir": "CLEMENT_STUDIO_ORCHESTRATOR",
+      "depends_on": ["P0-01", "P0-02", "P0-03"],
+      "python_project": true,
+      "protected_existing": false,
+      "certifier": "scripts/certify_global_p0.ps1"
+    }
+  ]
+}
