@@ -7,6 +7,7 @@
       "name": "CLEMENT_STUDIO_SKILLS_HUB",
       "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_HUB",
       "branch": "feat/p0-skills-hub-parallel",
+      "expected_head": "583f1490063872d06c2866c5e08754c1e05cb77a",
       "local_dir": "CLEMENT_STUDIO_SKILLS_HUB",
       "depends_on": [],
       "python_project": true,
@@ -18,6 +19,7 @@
       "name": "CLEMENT_STUDIO_SKILLS_MCP",
       "repository": "Clem91clem91/CLEMENT_STUDIO_SKILLS_MCP",
       "branch": "feat/p0-skills-mcp",
+      "expected_head": "6ecd68bc230ca3e65ddfd661897dd5a3160fe4df",
       "local_dir": "CLEMENT_STUDIO_SKILLS_MCP",
       "depends_on": ["P0-01"],
       "python_project": true,
@@ -29,6 +31,7 @@
       "name": "CLEMENT_STUDIO_OMNIROUTE",
       "repository": "Clem91clem91/CLEMENT_STUDIO_OMNIROUTE",
       "branch": "feat/p0-omniroute-certification",
+      "expected_head": "2b9ca8485d2322378e952d88400ba30767e4b187",
       "local_dir": "CLEMENT_STUDIO_OMNIROUTE",
       "depends_on": [],
       "python_project": true,
@@ -40,11 +43,12 @@
       "name": "CLEMENT_STUDIO_ORCHESTRATOR",
       "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
       "branch": "feat/p0-dynamic-orchestrator",
+      "expected_head": "a21c08f8242425e0af5883d38f85f3b51515367d",
       "local_dir": "CLEMENT_STUDIO_ORCHESTRATOR",
       "depends_on": ["P0-01", "P0-02", "P0-03"],
       "python_project": true,
       "protected_existing": false,
-      "certifier": "scripts/certify_shadow.ps1"
+      "certifier": "scripts/certify_global_p0.ps1"
     }
   ]
 }
