@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "program": "CLEMENT_STUDIO_P1_1",
+  "status": "PRE_MERGE_CERTIFICATION",
+  "orchestrator": {
+    "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
+    "branch": "feat/p1-1-evidence-contract",
+    "head": "80ef5bd02c232b17cb04627a8c26430956e33d6c"
+  },
+  "required_markers": [
+    "P1_1_01_RAW_EVIDENCE=PASS",
+    "P1_1_02_PROVENANCE=PASS",
+    "P1_1_03_CONSISTENCY=PASS",
+    "P1_1_04_FAIL_CLOSED_VERIFIER=PASS",
+    "P1_1_SHADOW_REAL=PASS",
+    "P1_1_GLOBAL=PASS",
+    "FABRICATED_EVIDENCE_BLOCKED=PASS",
+    "NO_EVIDENCE_NO_PASS=PASS"
+  ],
+  "forbidden_operations": [
+    "merge",
+    "tag",
+    "release"
+  ]
+}
