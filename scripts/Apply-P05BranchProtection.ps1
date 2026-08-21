@@ -1,20 +1,12 @@
-[CmdletBinding(DefaultParameterSetName = "Operate")]
+[CmdletBinding()]
 param(
-    [Parameter(ParameterSetName = "Operate")]
     [switch]$Apply,
-
-    [Parameter(ParameterSetName = "Operate")]
     [switch]$IncludeMain,
-
-    [Parameter(Mandatory = $true, ParameterSetName = "Resolve")]
-    [switch]$ResolveConfigOnly,
-
-    [Parameter(ParameterSetName = "Operate")]
-    [Parameter(ParameterSetName = "Resolve")]
     [string]$ConfigPath
 )
 
 $ErrorActionPreference = "Stop"
+$ResolveConfigOnly = ([string]$env:CLEMENT_P05_RESOLVE_CONFIG_ONLY -eq "1")
 
 if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
     $ScriptFile = [string]$PSCommandPath
