@@ -67,6 +67,15 @@ jobs:
             }
             Write-Host "POWERSHELL_PARSE=PASS FILE=$script"
           }
+      - name: Resolve governance config through powershell -File
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Apply-P05BranchProtection.ps1" -ResolveConfigOnly
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "CONFIG_RESOLUTION_REGRESSION"
+            exit $LASTEXITCODE
+          }
 
   governance-gate:
     name: governance-gate
