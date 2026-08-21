@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "program": "CLEMENT_STUDIO_P1",
+  "status": "PRE_MERGE_CERTIFICATION",
+  "orchestrator": {
+    "repository": "Clem91clem91/CLEMENT_STUDIO_ORCHESTRATOR",
+    "branch": "feat/p1-execution-core",
+    "head": "6329530b787a59c13be9654e189a31a4501dab46"
+  },
+  "required_markers": [
+    "P1_01=PASS",
+    "P1_02=PASS",
+    "P1_03=PASS",
+    "P1_04=PASS",
+    "EXECUTION_FABRIC=PASS",
+    "AGENT_RUNTIME=PASS",
+    "RESOURCE_GUARD=PASS",
+    "OBSERVABILITY=PASS",
+    "SHADOW_REAL_E2E=PASS"
+  ],
+  "forbidden_operations": [
+    "merge",
+    "tag",
+    "release"
+  ]
+}
