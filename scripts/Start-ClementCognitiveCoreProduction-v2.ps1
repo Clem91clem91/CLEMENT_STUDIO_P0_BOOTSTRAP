@@ -2,13 +2,28 @@
     Set-StrictMode -Version Latest
     $ErrorActionPreference = "Stop"
 
-    $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    # This file is deliberately wrapped in a child ScriptBlock. In that
+    # context $MyInvocation.MyCommand is a ScriptBlockInfo and has no Path
+    # property. $PSScriptRoot / $PSCommandPath retain the actual .ps1 path.
+    $ScriptRoot = $PSScriptRoot
+    if ([string]::IsNullOrWhiteSpace($ScriptRoot)) {
+        if ([string]::IsNullOrWhiteSpace($PSCommandPath)) {
+            throw "SCRIPT_ROOT_RESOLUTION_FAILED"
+        }
+        $ScriptRoot = Split-Path -Parent $PSCommandPath
+    }
+
+    if (-not (Test-Path -LiteralPath $ScriptRoot -PathType Container)) {
+        throw "SCRIPT_ROOT_NOT_FOUND=$ScriptRoot"
+    }
+
     $SourceScript = Join-Path $ScriptRoot "Start-ClementCognitiveCoreProduction.ps1"
     $PowerShellExe = (Get-Command powershell.exe -ErrorAction Stop).Source
 
     Write-Host "============================================================"
-    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V2"
-    Write-Host "FIX=EXPECTED_MISSING_GITHUB_OBJECTS_ARE_NOT_FATAL"
+    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V3"
+    Write-Host "FIX=SCRIPT_ROOT_AND_EXPECTED_MISSING_GITHUB_OBJECTS"
+    Write-Host "SCRIPT_ROOT=$ScriptRoot"
     Write-Host "MERGE_ALLOWED=NO"
     Write-Host "TAG_ALLOWED=NO"
     Write-Host "RELEASE_ALLOWED=NO"
@@ -95,13 +110,14 @@
 
     if ($ExitCode -ne 0) {
         Write-Host "PATCHED_SCRIPT_PRESERVED_FOR_EVIDENCE=$PatchedScript"
-        throw "COGNITIVE_CORE_PRODUCTION_V2=FAIL EXIT_CODE=$ExitCode"
+        throw "COGNITIVE_CORE_PRODUCTION_V3=FAIL EXIT_CODE=$ExitCode"
     }
 
     Remove-Item -LiteralPath $PatchedScript -Force -ErrorAction SilentlyContinue
 
     Write-Host "============================================================"
-    Write-Host "COGNITIVE_CORE_PRODUCTION_V2=PASS"
+    Write-Host "COGNITIVE_CORE_PRODUCTION_V3=PASS"
+    Write-Host "SCRIPT_ROOT_RESOLUTION=PASS"
     Write-Host "EXPECTED_MISSING_REPOSITORY_HANDLING=PASS"
     Write-Host "EXPECTED_MISSING_BRANCH_HANDLING=PASS"
     Write-Host "SOURCE_GENERATOR_MODIFIED=NO"
