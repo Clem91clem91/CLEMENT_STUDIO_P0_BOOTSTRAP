@@ -2,9 +2,9 @@
     Set-StrictMode -Version Latest
     $ErrorActionPreference = "Stop"
 
-    # This file is deliberately wrapped in a child ScriptBlock. In that
-    # context $MyInvocation.MyCommand is a ScriptBlockInfo and has no Path
-    # property. $PSScriptRoot / $PSCommandPath retain the actual .ps1 path.
+    # The file is wrapped in a child ScriptBlock. In that context
+    # $MyInvocation.MyCommand is a ScriptBlockInfo and has no Path property.
+    # $PSScriptRoot / $PSCommandPath retain the actual .ps1 location.
     $ScriptRoot = $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($ScriptRoot)) {
         if ([string]::IsNullOrWhiteSpace($PSCommandPath)) {
@@ -21,8 +21,8 @@
     $PowerShellExe = (Get-Command powershell.exe -ErrorAction Stop).Source
 
     Write-Host "============================================================"
-    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V3"
-    Write-Host "FIX=SCRIPT_ROOT_AND_EXPECTED_MISSING_GITHUB_OBJECTS"
+    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V4"
+    Write-Host "FIX=SCRIPT_ROOT_GITHUB_404_AND_BRANCH_URL_ENCODING"
     Write-Host "SCRIPT_ROOT=$ScriptRoot"
     Write-Host "MERGE_ALLOWED=NO"
     Write-Host "TAG_ALLOWED=NO"
@@ -64,8 +64,10 @@
     function Remote-BranchExists {
         param([string]$FullName, [string]$Branch)
 
-        # A missing branch is also expected while bootstrapping a new repo.
-        & cmd.exe /d /s /c "gh api `"repos/$FullName/branches/$Branch`" 1>nul 2>nul"
+        # GitHub branch names such as feat/foo must be URL encoded when used
+        # as the REST path parameter.
+        $EncodedBranch = [System.Uri]::EscapeDataString($Branch)
+        & cmd.exe /d /s /c "gh api `"repos/$FullName/branches/$EncodedBranch`" 1>nul 2>nul"
         return ($LASTEXITCODE -eq 0)
     }
 
@@ -110,16 +112,17 @@
 
     if ($ExitCode -ne 0) {
         Write-Host "PATCHED_SCRIPT_PRESERVED_FOR_EVIDENCE=$PatchedScript"
-        throw "COGNITIVE_CORE_PRODUCTION_V3=FAIL EXIT_CODE=$ExitCode"
+        throw "COGNITIVE_CORE_PRODUCTION_V4=FAIL EXIT_CODE=$ExitCode"
     }
 
     Remove-Item -LiteralPath $PatchedScript -Force -ErrorAction SilentlyContinue
 
     Write-Host "============================================================"
-    Write-Host "COGNITIVE_CORE_PRODUCTION_V3=PASS"
+    Write-Host "COGNITIVE_CORE_PRODUCTION_V4=PASS"
     Write-Host "SCRIPT_ROOT_RESOLUTION=PASS"
     Write-Host "EXPECTED_MISSING_REPOSITORY_HANDLING=PASS"
     Write-Host "EXPECTED_MISSING_BRANCH_HANDLING=PASS"
+    Write-Host "FEATURE_BRANCH_URL_ENCODING=PASS"
     Write-Host "SOURCE_GENERATOR_MODIFIED=NO"
     Write-Host "MERGE_EXECUTED=NO"
     Write-Host "TAG_CREATED=NO"
