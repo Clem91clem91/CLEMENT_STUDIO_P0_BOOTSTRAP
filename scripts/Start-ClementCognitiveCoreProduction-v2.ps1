@@ -2,22 +2,24 @@
     Set-StrictMode -Version Latest
     $ErrorActionPreference = "Stop"
 
-    # V6 recovery runner.
+    # ============================================================
+    # CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V7
     #
-    # Root cause fixed here:
-    # Windows PowerShell 5.1 can surface native stderr as NativeCommandError
-    # while $ErrorActionPreference=Stop, even when git/gh return exit code 0.
-    # The generated script therefore uses:
-    #   - ErrorActionPreference=Continue for native-process streams;
-    #   - PSDefaultParameterValues['*:ErrorAction']=Stop for PowerShell cmdlets.
-    # Native success/failure remains governed by LASTEXITCODE checks.
+    # Design rule:
+    #   NEVER invoke git.exe / gh.exe / python.exe with PowerShell '&'.
+    #   Windows PowerShell 5.1 can convert native stderr into a
+    #   NativeCommandError even when the native exit code is 0.
     #
-    # Existing recovery protections are preserved:
-    # - safe script-root resolution;
-    # - missing GitHub repositories/branches are expected control flow;
-    # - URL-encoded branch refs;
-    # - interrupted develop/feature branch recovery;
-    # - Initialize-Repository output normalization.
+    # Native processes are therefore executed exclusively through
+    # System.Diagnostics.Process with stdout/stderr redirected.
+    # ExitCode is the only native PASS/FAIL authority.
+    #
+    # This runner is resume-safe and does not merge/tag/release.
+    # ============================================================
+
+    $Owner = "Clem91clem91"
+    $ToolsRoot = "C:\Users\Shadow\Documents\CLEMENT_STUDIO\04_TOOLS"
+    $OdysseusPython = "C:\Users\Shadow\ODYSSEUS\venv\Scripts\python.exe"
 
     $ScriptRoot = $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($ScriptRoot)) {
@@ -27,307 +29,482 @@
         $ScriptRoot = Split-Path -Parent $PSCommandPath
     }
 
-    if (-not (Test-Path -LiteralPath $ScriptRoot -PathType Container)) {
-        throw "SCRIPT_ROOT_NOT_FOUND=$ScriptRoot"
-    }
-
     $SourceScript = Join-Path $ScriptRoot "Start-ClementCognitiveCoreProduction.ps1"
-    $PowerShellExe = (Get-Command powershell.exe -ErrorAction Stop).Source
 
     Write-Host "============================================================"
-    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V6"
-    Write-Host "FIX=WINDOWS_POWERSHELL_NATIVE_STDERR_HARDENING"
-    Write-Host "SCRIPT_ROOT=$ScriptRoot"
+    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V7"
+    Write-Host "NATIVE_EXECUTION=SYSTEM_DIAGNOSTICS_PROCESS"
+    Write-Host "NATIVE_STDERR=DATA_NOT_POWERSHELL_ERROR"
+    Write-Host "NATIVE_EXIT_CODE_AUTHORITATIVE=YES"
+    Write-Host "RESUME_SAFE=YES"
     Write-Host "MERGE_ALLOWED=NO"
     Write-Host "TAG_ALLOWED=NO"
     Write-Host "RELEASE_ALLOWED=NO"
     Write-Host "============================================================"
 
-    if (-not (Test-Path -LiteralPath $SourceScript -PathType Leaf)) {
-        throw "SOURCE_PRODUCTION_SCRIPT_NOT_FOUND=$SourceScript"
+    # ------------------------------------------------------------
+    # Native process layer
+    # ------------------------------------------------------------
+
+    function ConvertTo-NativeArgument {
+        param([AllowNull()][string]$Value)
+
+        if ($null -eq $Value -or $Value.Length -eq 0) {
+            return '""'
+        }
+
+        if ($Value -notmatch '[\s"]') {
+            return $Value
+        }
+
+        # Arguments used by this production runner do not contain embedded
+        # command-shell metacharacters. Escape embedded quotes defensively.
+        return '"' + $Value.Replace('"', '\"') + '"'
     }
 
-    $Source = Get-Content -LiteralPath $SourceScript -Raw -ErrorAction Stop
+    function Invoke-NativeProcess {
+        param(
+            [Parameter(Mandatory=$true)][string]$FilePath,
+            [string[]]$Arguments = @(),
+            [switch]$AllowFailure,
+            [switch]$ShowOutput,
+            [string]$WorkingDirectory
+        )
 
-    # -----------------------------------------------------------------
-    # PATCH 0 - Windows PowerShell 5.1 native stderr hardening.
-    # -----------------------------------------------------------------
-    $OldErrorPolicy = '    $ErrorActionPreference = "Stop"'
-    $NewErrorPolicy = @'
-    # PowerShell cmdlets remain fail-closed, while native commands are judged
-    # by their explicit exit codes. This avoids false NativeCommandError
-    # failures when git/gh write informational text to stderr on Windows
-    # PowerShell 5.1.
-    $ErrorActionPreference = "Continue"
-    $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
-'@
+        if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
+            throw "NATIVE_EXECUTABLE_NOT_FOUND=$FilePath"
+        }
 
-    if (-not $Source.Contains($OldErrorPolicy)) {
-        throw "PATCH_ERROR_POLICY_MARKER_NOT_FOUND"
+        $Psi = New-Object System.Diagnostics.ProcessStartInfo
+        $Psi.FileName = $FilePath
+        $Psi.Arguments = (($Arguments | ForEach-Object { ConvertTo-NativeArgument ([string]$_) }) -join ' ')
+        $Psi.UseShellExecute = $false
+        $Psi.RedirectStandardOutput = $true
+        $Psi.RedirectStandardError = $true
+        $Psi.CreateNoWindow = $true
+
+        if (-not [string]::IsNullOrWhiteSpace($WorkingDirectory)) {
+            $Psi.WorkingDirectory = $WorkingDirectory
+        }
+
+        $Process = New-Object System.Diagnostics.Process
+        $Process.StartInfo = $Psi
+
+        try {
+            if (-not $Process.Start()) {
+                throw "NATIVE_PROCESS_START_FAILED=$FilePath"
+            }
+
+            $StdOut = $Process.StandardOutput.ReadToEnd()
+            $StdErr = $Process.StandardError.ReadToEnd()
+            $Process.WaitForExit()
+            $ExitCode = $Process.ExitCode
+        }
+        finally {
+            $Process.Dispose()
+        }
+
+        $OutLines = @()
+        if (-not [string]::IsNullOrWhiteSpace($StdOut)) {
+            $OutLines = @($StdOut -split "`r?`n" | Where-Object { $_ -ne '' })
+        }
+
+        $ErrLines = @()
+        if (-not [string]::IsNullOrWhiteSpace($StdErr)) {
+            $ErrLines = @($StdErr -split "`r?`n" | Where-Object { $_ -ne '' })
+        }
+
+        if ($ShowOutput) {
+            foreach ($Line in $OutLines) { Write-Host $Line }
+            foreach ($Line in $ErrLines) { Write-Host $Line }
+        }
+
+        if (($ExitCode -ne 0) -and (-not $AllowFailure)) {
+            Write-Host "NATIVE_FAILURE_BEGIN"
+            Write-Host "FILE=$FilePath"
+            Write-Host "ARGS=$($Arguments -join ' ')"
+            Write-Host "EXIT_CODE=$ExitCode"
+            foreach ($Line in $OutLines) { Write-Host "STDOUT=$Line" }
+            foreach ($Line in $ErrLines) { Write-Host "STDERR=$Line" }
+            Write-Host "NATIVE_FAILURE_END"
+            throw "NATIVE_COMMAND_FAILED file=$FilePath exit=$ExitCode"
+        }
+
+        return [PSCustomObject]@{
+            ExitCode = $ExitCode
+            StdOut = $StdOut
+            StdErr = $StdErr
+            Output = $OutLines
+            ErrorOutput = $ErrLines
+        }
     }
 
-    $Patched = $Source.Replace($OldErrorPolicy, $NewErrorPolicy.TrimEnd("`r", "`n"))
+    $GitExe = (Get-Command git.exe -ErrorAction Stop).Source
+    $GhExe = (Get-Command gh.exe -ErrorAction Stop).Source
 
-    # -----------------------------------------------------------------
-    # PATCH 1 - safe remote existence probes.
-    # -----------------------------------------------------------------
-    $StartMarker = "    function Remote-RepoExists {"
-    $EndMarker = "    function Initialize-Repository {"
-
-    $StartIndex = $Patched.IndexOf($StartMarker, [System.StringComparison]::Ordinal)
-    $EndIndex = $Patched.IndexOf($EndMarker, [System.StringComparison]::Ordinal)
-
-    if ($StartIndex -lt 0) {
-        throw "PATCH_START_MARKER_NOT_FOUND"
+    if (-not (Test-Path -LiteralPath $OdysseusPython -PathType Leaf)) {
+        throw "ODYSSEUS_PYTHON_NOT_FOUND=$OdysseusPython"
     }
 
-    if ($EndIndex -lt 0 -or $EndIndex -le $StartIndex) {
-        throw "PATCH_END_MARKER_NOT_FOUND"
+    Write-Host "GIT_EXE=$GitExe"
+    Write-Host "GH_EXE=$GhExe"
+    Write-Host "PYTHON_EXE=$OdysseusPython"
+
+    # ------------------------------------------------------------
+    # Basic helpers
+    # ------------------------------------------------------------
+
+    $Utf8 = New-Object System.Text.UTF8Encoding($false)
+
+    function Write-TextFile {
+        param([string]$Path, [string]$Content)
+        $Parent = Split-Path -Parent $Path
+        if ($Parent) {
+            New-Item -ItemType Directory -Path $Parent -Force | Out-Null
+        }
+        [System.IO.File]::WriteAllText($Path, $Content, $Utf8)
     }
 
-    $SafeFunctions = @'
+    function Invoke-Git {
+        param(
+            [string]$RepoPath,
+            [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args,
+            [switch]$AllowFailure,
+            [switch]$ShowOutput
+        )
+
+        $AllArgs = @('-C', $RepoPath) + @($Args)
+        return Invoke-NativeProcess -FilePath $GitExe -Arguments $AllArgs -AllowFailure:$AllowFailure -ShowOutput:$ShowOutput
+    }
+
+    function Invoke-Gh {
+        param(
+            [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args,
+            [switch]$AllowFailure,
+            [switch]$ShowOutput
+        )
+
+        return Invoke-NativeProcess -FilePath $GhExe -Arguments $Args -AllowFailure:$AllowFailure -ShowOutput:$ShowOutput
+    }
+
     function Remote-RepoExists {
         param([string]$FullName)
-
-        & cmd.exe /d /s /c "gh repo view `"$FullName`" --json name 1>nul 2>nul"
-        return ($LASTEXITCODE -eq 0)
+        $Result = Invoke-Gh -Args @('repo','view',$FullName,'--json','name') -AllowFailure
+        return ($Result.ExitCode -eq 0)
     }
 
     function Remote-BranchExists {
         param([string]$FullName, [string]$Branch)
-
-        $EncodedBranch = [System.Uri]::EscapeDataString([string]$Branch)
-        & cmd.exe /d /s /c "gh api `"repos/$FullName/branches/$EncodedBranch`" 1>nul 2>nul"
-        return ($LASTEXITCODE -eq 0)
+        $Encoded = [System.Uri]::EscapeDataString($Branch)
+        $Result = Invoke-Gh -Args @('api',"repos/$FullName/branches/$Encoded") -AllowFailure
+        return ($Result.ExitCode -eq 0)
     }
 
-'@
-
-    $Patched = $Patched.Substring(0, $StartIndex) + $SafeFunctions + $Patched.Substring($EndIndex)
-
-    # -----------------------------------------------------------------
-    # PATCH 2 - interrupted-run-safe develop branch creation.
-    # -----------------------------------------------------------------
-    $OldDevelopElse = @'
-        else {
-            & git -C $RepoPath switch main
-            if ($LASTEXITCODE -ne 0) { throw "SWITCH_MAIN_FAILED=$Name" }
-            Invoke-Git $RepoPath pull --ff-only origin main
-            Invoke-Git $RepoPath switch -c develop
-            Invoke-Git $RepoPath push -u origin develop
-        }
-'@
-
-    $NewDevelopElse = @'
-        else {
-            & git -C $RepoPath switch main
-            if ($LASTEXITCODE -ne 0) { throw "SWITCH_MAIN_FAILED=$Name" }
-            Invoke-Git $RepoPath pull --ff-only origin main
-
-            $LocalDevelop = (& git -C $RepoPath branch --list develop).Trim()
-            if ([string]::IsNullOrWhiteSpace($LocalDevelop)) {
-                Invoke-Git $RepoPath switch -c develop
-            }
-            else {
-                & git -C $RepoPath switch develop
-                if ($LASTEXITCODE -ne 0) { throw "SWITCH_LOCAL_DEVELOP_FAILED=$Name" }
-            }
-
-            Invoke-Git $RepoPath push -u origin develop
-        }
-'@
-
-    if (-not $Patched.Contains($OldDevelopElse)) {
-        throw "PATCH_DEVELOP_BLOCK_NOT_FOUND"
-    }
-    $Patched = $Patched.Replace($OldDevelopElse, $NewDevelopElse)
-
-    # -----------------------------------------------------------------
-    # PATCH 3 - interrupted-run-safe feature branch creation.
-    # -----------------------------------------------------------------
-    $OldFeatureElse = @'
-        else {
-            & git -C $RepoPath switch develop
-            if ($LASTEXITCODE -ne 0) { throw "SWITCH_DEVELOP_FAILED=$Name" }
-            Invoke-Git $RepoPath switch -c $FeatureBranch
-        }
-'@
-
-    $NewFeatureElse = @'
-        else {
-            & git -C $RepoPath switch develop
-            if ($LASTEXITCODE -ne 0) { throw "SWITCH_DEVELOP_FAILED=$Name" }
-
-            $LocalFeature = (& git -C $RepoPath branch --list $FeatureBranch).Trim()
-            if ([string]::IsNullOrWhiteSpace($LocalFeature)) {
-                Invoke-Git $RepoPath switch -c $FeatureBranch
-            }
-            else {
-                & git -C $RepoPath switch $FeatureBranch
-                if ($LASTEXITCODE -ne 0) { throw "SWITCH_LOCAL_FEATURE_FAILED=$Name BRANCH=$FeatureBranch" }
-            }
-        }
-'@
-
-    if (-not $Patched.Contains($OldFeatureElse)) {
-        throw "PATCH_FEATURE_BLOCK_NOT_FOUND"
-    }
-    $Patched = $Patched.Replace($OldFeatureElse, $NewFeatureElse)
-
-    # -----------------------------------------------------------------
-    # PATCH 4 - normalize Initialize-Repository return value.
-    # -----------------------------------------------------------------
-    $OldCall = '        $RepoPath = Initialize-Repository -Name $Spec.Name -Description $Spec.Description -FeatureBranch $Spec.Branch'
-
-    $NewCall = @'
-        $InitializeOutput = @(Initialize-Repository -Name $Spec.Name -Description $Spec.Description -FeatureBranch $Spec.Branch)
-        if ($InitializeOutput.Count -eq 0) {
-            throw "INITIALIZE_REPOSITORY_RETURNED_NO_PATH=$($Spec.Name)"
-        }
-
-        if ($InitializeOutput.Count -gt 1) {
-            for ($OutputIndex = 0; $OutputIndex -lt ($InitializeOutput.Count - 1); $OutputIndex++) {
-                Write-Host "INITIALIZE_OUTPUT=$($InitializeOutput[$OutputIndex])"
-            }
-        }
-
-        $RepoPath = [string]$InitializeOutput[-1]
-
-        if ([string]::IsNullOrWhiteSpace($RepoPath)) {
-            throw "INITIALIZE_REPOSITORY_EMPTY_PATH=$($Spec.Name)"
-        }
-
-        if (-not [System.IO.Path]::IsPathRooted($RepoPath)) {
-            throw "INITIALIZE_REPOSITORY_NONLOCAL_PATH=$($Spec.Name) VALUE=$RepoPath"
-        }
-
-        if ($RepoPath -match '^https?:') {
-            throw "INITIALIZE_REPOSITORY_URL_POLLUTION=$($Spec.Name) VALUE=$RepoPath"
-        }
-
-        Write-Host "RESOLVED_LOCAL_REPO_PATH=$RepoPath"
-'@
-
-    if (-not $Patched.Contains($OldCall)) {
-        throw "PATCH_INITIALIZE_CALL_NOT_FOUND"
-    }
-    $Patched = $Patched.Replace($OldCall, $NewCall.TrimEnd("`r", "`n"))
-
-    # -----------------------------------------------------------------
-    # PATCH 5 - harden Invoke-Git success stream.
-    # Keep git output visible, but do not let it become a function return
-    # value and do not fail merely because git writes informational stderr.
-    # -----------------------------------------------------------------
-    $OldInvokeGit = @'
-    function Invoke-Git {
-        param([string]$RepoPath, [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args)
-        & git -C $RepoPath @Args
-        if ($LASTEXITCODE -ne 0) { throw "GIT_FAILED=$($Args -join ' ') REPO=$RepoPath" }
-    }
-'@
-
-    $NewInvokeGit = @'
-    function Invoke-Git {
-        param([string]$RepoPath, [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args)
-
-        $NativeOutput = @(& git -C $RepoPath @Args 2>&1)
-        $ExitCode = $LASTEXITCODE
-
-        foreach ($Line in $NativeOutput) {
-            if ($null -ne $Line) {
-                Write-Host ([string]$Line)
-            }
-        }
-
-        if ($ExitCode -ne 0) {
-            throw "GIT_FAILED=$($Args -join ' ') REPO=$RepoPath EXIT_CODE=$ExitCode"
-        }
-    }
-'@
-
-    if (-not $Patched.Contains($OldInvokeGit)) {
-        throw "PATCH_INVOKE_GIT_NOT_FOUND"
-    }
-    $Patched = $Patched.Replace($OldInvokeGit, $NewInvokeGit)
-
-    # -----------------------------------------------------------------
-    # PATCH 6 - native-process contract marker.
-    # -----------------------------------------------------------------
-    $ModeMarker = '    Write-Host "MODE=GITHUB_FIRST"'
-    $ModeReplacement = @'
-    Write-Host "MODE=GITHUB_FIRST"
-    Write-Host "WINDOWS_POWERSHELL_NATIVE_POLICY=EXIT_CODE_AUTHORITATIVE"
-    Write-Host "POWERSHELL_CMDLET_POLICY=FAIL_CLOSED"
-'@
-
-    if ($Patched.Contains($ModeMarker)) {
-        $Patched = $Patched.Replace($ModeMarker, $ModeReplacement.TrimEnd("`r", "`n"))
+    function Local-BranchExists {
+        param([string]$RepoPath, [string]$Branch)
+        $Result = Invoke-Git -RepoPath $RepoPath -Args @('branch','--list',$Branch)
+        return (-not [string]::IsNullOrWhiteSpace($Result.StdOut))
     }
 
-    # -----------------------------------------------------------------
-    # Write and validate patched script.
-    # -----------------------------------------------------------------
-    $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $PatchedScript = Join-Path $env:TEMP "CLEMENT_CognitiveCoreProduction_patched_$Timestamp.ps1"
-    $Utf8 = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($PatchedScript, $Patched, $Utf8)
+    function Get-CurrentBranch {
+        param([string]$RepoPath)
+        $Result = Invoke-Git -RepoPath $RepoPath -Args @('branch','--show-current')
+        return $Result.StdOut.Trim()
+    }
 
-    Write-Host "SOURCE_SCRIPT=$SourceScript"
-    Write-Host "PATCHED_SCRIPT=$PatchedScript"
-    Write-Host "PATCH_NATIVE_ERROR_POLICY=PASS"
-    Write-Host "PATCH_REMOTE_PROBES=PASS"
-    Write-Host "PATCH_DEVELOP_RESUME=PASS"
-    Write-Host "PATCH_FEATURE_RESUME=PASS"
-    Write-Host "PATCH_RETURN_NORMALIZATION=PASS"
-    Write-Host "PATCH_INVOKE_GIT=PASS"
+    function Get-GitHead {
+        param([string]$RepoPath)
+        $Result = Invoke-Git -RepoPath $RepoPath -Args @('rev-parse','HEAD')
+        return $Result.StdOut.Trim()
+    }
+
+    function Get-GitDirtyLines {
+        param([string]$RepoPath)
+        $Result = Invoke-Git -RepoPath $RepoPath -Args @('status','--porcelain')
+        if ([string]::IsNullOrWhiteSpace($Result.StdOut)) { return @() }
+        return @($Result.StdOut -split "`r?`n" | Where-Object { $_ -ne '' })
+    }
+
+    # ------------------------------------------------------------
+    # Load only deterministic code-generation functions from the
+    # source generator. Native orchestration from that legacy script
+    # is deliberately NOT executed.
+    # ------------------------------------------------------------
+
+    if (-not (Test-Path -LiteralPath $SourceScript -PathType Leaf)) {
+        throw "SOURCE_GENERATOR_NOT_FOUND=$SourceScript"
+    }
 
     $Tokens = $null
     $ParseErrors = $null
-    [System.Management.Automation.Language.Parser]::ParseFile(
-        $PatchedScript,
+    $Ast = [System.Management.Automation.Language.Parser]::ParseFile(
+        $SourceScript,
         [ref]$Tokens,
         [ref]$ParseErrors
-    ) | Out-Null
+    )
 
     if ($ParseErrors.Count -gt 0) {
         foreach ($ParseError in $ParseErrors) {
-            Write-Host "PARSE_ERROR=$($ParseError.Message)"
+            Write-Host "SOURCE_PARSE_ERROR=$($ParseError.Message)"
         }
-        throw "PATCHED_SCRIPT_PARSE=FAIL"
+        throw "SOURCE_GENERATOR_PARSE=FAIL"
     }
 
-    Write-Host "PATCHED_SCRIPT_PARSE=PASS"
+    $NeededFunctions = @(
+        'Write-CommonFiles',
+        'Build-CoreRepo',
+        'Build-IntentRepo',
+        'Build-KnowledgeRepo'
+    )
 
-    & $PowerShellExe `
-        -NoLogo `
-        -NoProfile `
-        -ExecutionPolicy Bypass `
-        -File $PatchedScript
+    foreach ($FunctionName in $NeededFunctions) {
+        $Node = $Ast.Find({
+            param($AstNode)
+            ($AstNode -is [System.Management.Automation.Language.FunctionDefinitionAst]) -and
+            ($AstNode.Name -eq $FunctionName)
+        }, $true)
 
-    $ExitCode = $LASTEXITCODE
-    Write-Host "PATCHED_PRODUCTION_EXIT_CODE=$ExitCode"
+        if ($null -eq $Node) {
+            throw "GENERATOR_FUNCTION_NOT_FOUND=$FunctionName"
+        }
 
-    if ($ExitCode -ne 0) {
-        Write-Host "PATCHED_SCRIPT_PRESERVED_FOR_EVIDENCE=$PatchedScript"
-        throw "COGNITIVE_CORE_PRODUCTION_V6=FAIL EXIT_CODE=$ExitCode"
+        Invoke-Expression $Node.Extent.Text
+        Write-Host "GENERATOR_FUNCTION_LOADED=$FunctionName"
     }
 
-    Remove-Item -LiteralPath $PatchedScript -Force -ErrorAction SilentlyContinue
+    # ------------------------------------------------------------
+    # GitHub auth
+    # ------------------------------------------------------------
 
+    Write-Host ""
+    Write-Host "=== GITHUB_AUTH ==="
+    $Auth = Invoke-Gh -Args @('auth','status') -ShowOutput
+    Write-Host "GITHUB_AUTH=PASS"
+
+    New-Item -ItemType Directory -Path $ToolsRoot -Force | Out-Null
+
+    # ------------------------------------------------------------
+    # Repository preparation - fully idempotent/resume-safe
+    # ------------------------------------------------------------
+
+    function Initialize-RepositoryV7 {
+        param(
+            [string]$Name,
+            [string]$Description,
+            [string]$FeatureBranch
+        )
+
+        $FullName = "$Owner/$Name"
+        $RepoPath = Join-Path $ToolsRoot $Name
+
+        Write-Host ""
+        Write-Host "=== REPOSITORY_PREPARE=$Name ==="
+
+        $RemoteExists = Remote-RepoExists $FullName
+        Write-Host "REMOTE_EXISTS=$RemoteExists"
+
+        if (-not $RemoteExists) {
+            Invoke-Gh -Args @('repo','create',$FullName,'--private','--description',$Description) -ShowOutput | Out-Null
+            Write-Host "REPOSITORY_CREATED=$FullName"
+            $RemoteExists = $true
+        }
+
+        if (-not (Test-Path -LiteralPath $RepoPath -PathType Container)) {
+            Invoke-Gh -Args @('repo','clone',$FullName,$RepoPath) -ShowOutput | Out-Null
+            Write-Host "LOCAL_CLONE_CREATED=$RepoPath"
+        }
+
+        if (-not (Test-Path -LiteralPath (Join-Path $RepoPath '.git') -PathType Container)) {
+            throw "LOCAL_NOT_GIT_REPOSITORY=$RepoPath"
+        }
+
+        # If the remote was empty when cloned, create the main baseline now.
+        $HeadCheck = Invoke-Git -RepoPath $RepoPath -Args @('rev-parse','--verify','HEAD') -AllowFailure
+        if ($HeadCheck.ExitCode -ne 0) {
+            Write-TextFile (Join-Path $RepoPath 'README.md') "# $Name`r`n`r`nCLEMENT STUDIO cognitive foundation repository.`r`n"
+            Invoke-Git -RepoPath $RepoPath -Args @('add','README.md') | Out-Null
+            Invoke-Git -RepoPath $RepoPath -Args @('commit','-m','chore: initialize repository') -ShowOutput | Out-Null
+            Invoke-Git -RepoPath $RepoPath -Args @('branch','-M','main') | Out-Null
+            Invoke-Git -RepoPath $RepoPath -Args @('push','-u','origin','main') -ShowOutput | Out-Null
+            Write-Host "MAIN_BASELINE_CREATED=$Name"
+        }
+
+        Invoke-Git -RepoPath $RepoPath -Args @('fetch','origin','--prune') -ShowOutput | Out-Null
+
+        $Dirty = @(Get-GitDirtyLines $RepoPath)
+        $CurrentBranch = Get-CurrentBranch $RepoPath
+        Write-Host "CURRENT_BRANCH_BEFORE_PREPARE=$CurrentBranch"
+        Write-Host "DIRTY_COUNT_BEFORE_PREPARE=$($Dirty.Count)"
+
+        if ($Dirty.Count -gt 0 -and $CurrentBranch -ne $FeatureBranch) {
+            foreach ($Line in $Dirty) { Write-Host "DIRTY=$Line" }
+            throw "LOCAL_WORKTREE_DIRTY_OUTSIDE_FEATURE=$Name"
+        }
+
+        # DEVELOP
+        if (Remote-BranchExists $FullName 'develop') {
+            if (Local-BranchExists $RepoPath 'develop') {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','develop') -ShowOutput | Out-Null
+            }
+            else {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','-c','develop','--track','origin/develop') -ShowOutput | Out-Null
+            }
+            Invoke-Git -RepoPath $RepoPath -Args @('pull','--ff-only','origin','develop') -ShowOutput | Out-Null
+        }
+        else {
+            if (Local-BranchExists $RepoPath 'main') {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','main') -ShowOutput | Out-Null
+            }
+            else {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','-c','main','--track','origin/main') -ShowOutput | Out-Null
+            }
+            Invoke-Git -RepoPath $RepoPath -Args @('pull','--ff-only','origin','main') -ShowOutput | Out-Null
+
+            if (Local-BranchExists $RepoPath 'develop') {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','develop') -ShowOutput | Out-Null
+            }
+            else {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','-c','develop') -ShowOutput | Out-Null
+            }
+            Invoke-Git -RepoPath $RepoPath -Args @('push','-u','origin','develop') -ShowOutput | Out-Null
+        }
+
+        # FEATURE
+        if (Remote-BranchExists $FullName $FeatureBranch) {
+            if (Local-BranchExists $RepoPath $FeatureBranch) {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch',$FeatureBranch) -ShowOutput | Out-Null
+            }
+            else {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','-c',$FeatureBranch,'--track',"origin/$FeatureBranch") -ShowOutput | Out-Null
+            }
+            Invoke-Git -RepoPath $RepoPath -Args @('pull','--ff-only','origin',$FeatureBranch) -ShowOutput | Out-Null
+        }
+        else {
+            if (Local-BranchExists $RepoPath $FeatureBranch) {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch',$FeatureBranch) -ShowOutput | Out-Null
+            }
+            else {
+                Invoke-Git -RepoPath $RepoPath -Args @('switch','-c',$FeatureBranch) -ShowOutput | Out-Null
+            }
+        }
+
+        $Resolved = [System.IO.Path]::GetFullPath($RepoPath)
+        Write-Host "RESOLVED_LOCAL_REPO_PATH=$Resolved"
+        return $Resolved
+    }
+
+    $Specs = @(
+        @{ Name='CLEMENT_STUDIO_CORE'; Description='CLEMENT cognitive contracts, Event Bus, provenance and Odysseus runtime adapters'; Branch='feat/cognitive-foundation'; Builder='core' },
+        @{ Name='CLEMENT_STUDIO_INTENT'; Description='CLEMENT Intent Core and deterministic Intent Compiler'; Branch='feat/intent-core-mvp'; Builder='intent' },
+        @{ Name='CLEMENT_STUDIO_KNOWLEDGE'; Description='CLEMENT Knowledge Core, ontology, entity resolution and Digital Twin primitives'; Branch='feat/knowledge-core-mvp'; Builder='knowledge' }
+    )
+
+    $Results = @()
+
+    foreach ($Spec in $Specs) {
+        $RepoPath = Initialize-RepositoryV7 -Name $Spec.Name -Description $Spec.Description -FeatureBranch $Spec.Branch
+
+        Write-Host ""
+        Write-Host "=== GENERATE_CODE=$($Spec.Name) ==="
+
+        switch ($Spec.Builder) {
+            'core' { Build-CoreRepo $RepoPath }
+            'intent' { Build-IntentRepo $RepoPath }
+            'knowledge' { Build-KnowledgeRepo $RepoPath }
+            default { throw "UNKNOWN_BUILDER=$($Spec.Builder)" }
+        }
+
+        Write-Host "CODE_GENERATION=PASS REPO=$($Spec.Name)"
+
+        Write-Host "=== TEST=$($Spec.Name) ==="
+
+        $Compile = Invoke-NativeProcess -FilePath $OdysseusPython -Arguments @('-m','compileall','-q',(Join-Path $RepoPath 'src')) -ShowOutput
+        $Tests = Invoke-NativeProcess -FilePath $OdysseusPython -Arguments @('-m','pytest','-q',(Join-Path $RepoPath 'tests')) -ShowOutput
+
+        Write-Host "UNIT_TESTS=PASS REPO=$($Spec.Name)"
+
+        Invoke-Git -RepoPath $RepoPath -Args @('add','.') | Out-Null
+        $Changes = @(Get-GitDirtyLines $RepoPath)
+
+        if ($Changes.Count -gt 0) {
+            Invoke-Git -RepoPath $RepoPath -Args @('commit','-m','feat: bootstrap cognitive core MVP') -ShowOutput | Out-Null
+            Write-Host "COMMIT_CREATED=YES REPO=$($Spec.Name)"
+        }
+        else {
+            Write-Host "COMMIT_CREATED=NO REASON=NO_CHANGES REPO=$($Spec.Name)"
+        }
+
+        Invoke-Git -RepoPath $RepoPath -Args @('push','-u','origin',$Spec.Branch) -ShowOutput | Out-Null
+        $Head = Get-GitHead $RepoPath
+
+        $FullName = "$Owner/$($Spec.Name)"
+        $PrList = Invoke-Gh -Args @('pr','list','--repo',$FullName,'--head',$Spec.Branch,'--base','develop','--state','open','--json','number,isDraft,url')
+
+        $ExistingPrs = @()
+        if (-not [string]::IsNullOrWhiteSpace($PrList.StdOut)) {
+            $ExistingPrs = @($PrList.StdOut | ConvertFrom-Json)
+        }
+
+        if ($ExistingPrs.Count -eq 0) {
+            $BodyPath = Join-Path $env:TEMP ("CLEMENT_PR_BODY_" + $Spec.Name + ".md")
+            $Body = @"
+## CLEMENT Cognitive OS production
+
+Initial production scaffold for `$($Spec.Name)`.
+
+- GitHub-first feature branch
+- deterministic MVP contracts
+- Python 3.11/3.13 CI
+- unit tests
+- no merge/tag/release requested
+
+Architecture source: `CLEMENT_STUDIO_P0_BOOTSTRAP` / `feat/cognitive-core-production`.
+"@
+            [System.IO.File]::WriteAllText($BodyPath, $Body, $Utf8)
+            try {
+                Invoke-Gh -Args @('pr','create','--repo',$FullName,'--base','develop','--head',$Spec.Branch,'--title','feat: bootstrap cognitive core MVP','--body-file',$BodyPath,'--draft') -ShowOutput | Out-Null
+            }
+            finally {
+                Remove-Item -LiteralPath $BodyPath -Force -ErrorAction SilentlyContinue
+            }
+            Write-Host "DRAFT_PR_CREATED=YES REPO=$($Spec.Name)"
+        }
+        else {
+            $Pr = $ExistingPrs[0]
+            if (-not $Pr.isDraft) {
+                throw "EXISTING_PR_NOT_DRAFT=$FullName PR=$($Pr.number)"
+            }
+            Write-Host "DRAFT_PR_ALREADY_EXISTS=$($Pr.number) REPO=$($Spec.Name)"
+        }
+
+        $FinalDirty = @(Get-GitDirtyLines $RepoPath)
+        if ($FinalDirty.Count -ne 0) {
+            foreach ($Line in $FinalDirty) { Write-Host "FINAL_DIRTY=$Line" }
+            throw "FINAL_WORKTREE_DIRTY=$($Spec.Name)"
+        }
+
+        $Results += [PSCustomObject]@{
+            Repository = $Spec.Name
+            Branch = $Spec.Branch
+            Head = $Head
+            Tests = 'PASS'
+        }
+    }
+
+    Write-Host ""
     Write-Host "============================================================"
-    Write-Host "COGNITIVE_CORE_PRODUCTION_V6=PASS"
-    Write-Host "SCRIPT_ROOT_RESOLUTION=PASS"
-    Write-Host "WINDOWS_POWERSHELL_NATIVE_STDERR=HARDENED"
+    Write-Host "COGNITIVE_CORE_PRODUCTION_V7=PASS"
+    Write-Host "NATIVE_EXECUTION=SYSTEM_DIAGNOSTICS_PROCESS"
+    Write-Host "NATIVE_STDERR_POWERSHELL_CONVERSION=ELIMINATED"
     Write-Host "NATIVE_EXIT_CODE_AUTHORITATIVE=YES"
-    Write-Host "POWERSHELL_CMDLETS_FAIL_CLOSED=YES"
-    Write-Host "EXPECTED_MISSING_REPOSITORY_HANDLING=PASS"
-    Write-Host "EXPECTED_MISSING_BRANCH_HANDLING=PASS"
-    Write-Host "FEATURE_BRANCH_URL_ENCODING=PASS"
-    Write-Host "INITIALIZE_RETURN_NORMALIZATION=PASS"
-    Write-Host "INTERRUPTED_RUN_RESUME=PASS"
-    Write-Host "SOURCE_GENERATOR_MODIFIED=NO"
+    foreach ($Result in $Results) {
+        Write-Host "REPO=$($Result.Repository) BRANCH=$($Result.Branch) HEAD=$($Result.Head) TESTS=$($Result.Tests)"
+    }
+    Write-Host "REPOSITORIES_CREATED_OR_REUSED=3"
+    Write-Host "DRAFT_PRS=CREATED_OR_REUSED"
     Write-Host "MERGE_EXECUTED=NO"
     Write-Host "TAG_CREATED=NO"
     Write-Host "RELEASE_CREATED=NO"
+    Write-Host "NEXT=EXTEND_MEMORY_KNOWLEDGE_PIPELINE_ORCHESTRATOR"
     Write-Host "============================================================"
 }
