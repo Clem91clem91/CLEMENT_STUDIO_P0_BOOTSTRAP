@@ -6,19 +6,19 @@
       "name": "memory",
       "repository": "CLEMENT_STUDIO_MEMORY",
       "branch": "feat/bootstrap-module-mvp",
-      "head": "fe8a93bfbf2ea6cf5f29c9553354c0ca1677a705"
+      "head": "e6aff01fca19848246e97caf1df9a24840ab234f"
     },
     {
       "name": "verified_response",
       "repository": "CLEMENT_STUDIO_VERIFIED_RESPONSE",
       "branch": "feat/bootstrap-module-mvp",
-      "head": "c5aad6f5fc10709ab21dc347f904168a042c6632"
+      "head": "a2196284fd9543c011f313246166f55008176c24"
     },
     {
       "name": "agent_runtime",
       "repository": "CLEMENT_STUDIO_AGENT_RUNTIME",
       "branch": "feat/bootstrap-module-mvp",
-      "head": "91a5dfb2aa383fb7e40593d83b02afa396bb5899"
+      "head": "4a35c2e28c91c6816f27f434e463ba00115a00bd"
     },
     {
       "name": "omniroute",
@@ -30,13 +30,13 @@
       "name": "gpu_manager",
       "repository": "CLEMENT_STUDIO_GPU_MANAGER",
       "branch": "feat/bootstrap-module-mvp",
-      "head": "bb7e7316ab27a410b9afdf5ad3c95d0a073c96b5"
+      "head": "30676a431a8fb8df2bda2c8cb7ece8d80041728c"
     },
     {
       "name": "knowledge_pipeline",
       "repository": "CLEMENT_STUDIO_KNOWLEDGE_PIPELINE",
       "branch": "feat/bootstrap-module-mvp",
-      "head": "45abc99127ccd84a1e1586071d49d532f3e5c8e7"
+      "head": "4adeb9813fe2e93100a2b2d843f999669a1055e1"
     }
   ],
   "required_markers": [
