@@ -1,0 +1,45 @@
+{
+  "program": "CLEMENT_STUDIO_COGNITIVE_OS",
+  "version": "0.1.0",
+  "architecture": "CLEMENT_CORE_WITH_ODYSSEUS_RUNTIME_ADAPTER",
+  "new_repositories": [
+    {
+      "name": "CLEMENT_STUDIO_CORE",
+      "visibility": "private",
+      "branch": "feat/cognitive-foundation",
+      "purpose": "Shared cognitive contracts, Event Bus, provenance, context, Integration Decision Engine and Odysseus runtime adapter"
+    },
+    {
+      "name": "CLEMENT_STUDIO_INTENT",
+      "visibility": "private",
+      "branch": "feat/intent-core-mvp",
+      "purpose": "Deterministic Intent Compiler and capability/risk/context contract"
+    },
+    {
+      "name": "CLEMENT_STUDIO_KNOWLEDGE",
+      "visibility": "private",
+      "branch": "feat/knowledge-core-mvp",
+      "purpose": "Ontology, entity resolution, temporal relations, provenance and Digital Twin primitives"
+    }
+  ],
+  "existing_repositories": {
+    "CLEMENT_STUDIO_MEMORY": "extend_to_memory_core",
+    "CLEMENT_STUDIO_VERIFIED_RESPONSE": "retain_as_verification_gate",
+    "CLEMENT_STUDIO_AGENT_RUNTIME": "retain_as_agent_execution_runtime",
+    "CLEMENT_STUDIO_OMNIROUTE": "retain_as_model_router",
+    "CLEMENT_STUDIO_GPU_MANAGER": "retain_as_resource_manager",
+    "CLEMENT_STUDIO_KNOWLEDGE_PIPELINE": "extend_as_ingestion_engine",
+    "CLEMENT_STUDIO_ORCHESTRATOR": "extend_as_dynamic_orchestrator",
+    "CLEMENT_STUDIO_MCP_HUB": "extend_as_action_bus",
+    "CLEMENT_STUDIO_SKILLS_HUB": "retain",
+    "CLEMENT_STUDIO_SKILLS_MCP": "retain"
+  },
+  "guardrails": {
+    "merge_without_user_validation": false,
+    "tag_without_user_validation": false,
+    "release_without_user_validation": false,
+    "docker": false,
+    "wsl": false,
+    "hyper_v": false
+  }
+}
