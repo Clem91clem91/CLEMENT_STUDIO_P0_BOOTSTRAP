@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "program": "CLEMENT_STUDIO_MODULAR_ROADMAP",
+  "source_of_truth": "GitHub",
+  "repository_strategy": "separate-specialized-repositories",
+  "modules": [
+    {
+      "order": 1,
+      "phase": "P1.1+",
+      "key": "memory",
+      "repository": "CLEMENT_STUDIO_MEMORY",
+      "package": "clement_memory",
+      "description": "Persistent project memory, semantic rules, negative-test semantics and context contracts for Odysseus.",
+      "depends_on": []
+    },
+    {
+      "order": 2,
+      "phase": "P1.2",
+      "key": "verified_response",
+      "repository": "CLEMENT_STUDIO_VERIFIED_RESPONSE",
+      "package": "clement_verified_response",
+      "description": "Deterministic claim verification and response gate. The LLM explains verdicts but cannot manufacture them.",
+      "depends_on": ["memory", "CLEMENT_STUDIO_ORCHESTRATOR"]
+    },
+    {
+      "order": 3,
+      "phase": "P1.3",
+      "key": "agent_runtime",
+      "repository": "CLEMENT_STUDIO_AGENT_RUNTIME",
+      "package": "clement_agent_runtime",
+      "description": "Real multi-model agent execution runtime with independent model calls, coalitions, messaging and verification.",
+      "depends_on": ["verified_response", "CLEMENT_STUDIO_OMNIROUTE", "CLEMENT_STUDIO_SKILLS_MCP"]
+    },
+    {
+      "order": 4,
+      "phase": "P1.4",
+      "key": "gpu_manager",
+      "repository": "CLEMENT_STUDIO_GPU_MANAGER",
+      "package": "clement_gpu_manager",
+      "description": "Live CPU/RAM/GPU/VRAM telemetry, queues, reservations, priorities and safe GPU workload arbitration.",
+      "depends_on": ["agent_runtime", "CLEMENT_STUDIO_ORCHESTRATOR"]
+    },
+    {
+      "order": 5,
+      "phase": "P1.5",
+      "key": "knowledge_pipeline",
+      "repository": "CLEMENT_STUDIO_KNOWLEDGE_PIPELINE",
+      "package": "clement_knowledge_pipeline",
+      "description": "Drive and web-document ingestion, provenance, license metadata, hashing, deduplication, parsing and memory ingestion.",
+      "depends_on": ["memory", "CLEMENT_STUDIO_SKILLS_MCP"]
+    },
+    {
+      "order": 6,
+      "phase": "P2",
+      "key": "comfyui_studio",
+      "repository": "CLEMENT_STUDIO_COMFYUI_STUDIO",
+      "package": "clement_comfyui_studio",
+      "description": "ComfyUI workflow discovery, execution, model inventory, queueing, GPU scheduling and output evidence.",
+      "depends_on": ["gpu_manager", "verified_response"]
+    },
+    {
+      "order": 7,
+      "phase": "P2",
+      "key": "blender_autopilot",
+      "repository": "CLEMENT_STUDIO_BLENDER_AUTOPILOT",
+      "package": "clement_blender_autopilot",
+      "description": "Blender scene inspection and controlled Python automation for assets, materials, cameras, renders and proof capture.",
+      "depends_on": ["gpu_manager", "verified_response"]
+    },
+    {
+      "order": 8,
+      "phase": "P2",
+      "key": "unreal_autopilot",
+      "repository": "CLEMENT_STUDIO_UNREAL_AUTOPILOT",
+      "package": "clement_unreal_autopilot",
+      "description": "Unreal Engine automation bridge for project inspection, assets, Fab integration, placement, Nanite/LOD and validation.",
+      "depends_on": ["gpu_manager", "verified_response"]
+    },
+    {
+      "order": 9,
+      "phase": "P2",
+      "key": "mona_pipeline",
+      "repository": "CLEMENT_STUDIO_MONA_PIPELINE",
+      "package": "clement_mona_pipeline",
+      "description": "End-to-end MONA environment pipeline coordinating Blender, Unreal, ComfyUI, assets, terrain, vegetation and renders.",
+      "depends_on": ["comfyui_studio", "blender_autopilot", "unreal_autopilot", "gpu_manager"]
+    },
+    {
+      "order": 10,
+      "phase": "P3",
+      "key": "control_center",
+      "repository": "CLEMENT_STUDIO_CONTROL_CENTER",
+      "package": "clement_control_center",
+      "description": "Operational dashboard for tasks, agents, coalitions, MCPs, models, GPU, tokens, evidence, errors and creative workloads.",
+      "depends_on": ["agent_runtime", "gpu_manager", "verified_response"]
+    },
+    {
+      "order": 11,
+      "phase": "P3",
+      "key": "social_automation",
+      "repository": "CLEMENT_STUDIO_SOCIAL_AUTOMATION",
+      "package": "clement_social_automation",
+      "description": "Provider-neutral social automation contracts for content workflows, scheduling, analytics, approvals and evidence.",
+      "depends_on": ["agent_runtime", "verified_response", "knowledge_pipeline"]
+    }
+  ],
+  "existing_repository_extensions": [
+    {
+      "repository": "CLEMENT_STUDIO_OMNIROUTE",
+      "workstream": "dynamic-agent-model-routing",
+      "description": "Per-agent model selection using capability, quality, latency, locality, cost, context and resource signals."
+    }
+  ],
+  "governance": {
+    "development_branch": "develop",
+    "feature_branch_prefix": "feat/",
+    "required_check": "governance-gate",
+    "no_merge_without_user_approval": true,
+    "no_tag_without_user_approval": true,
+    "no_release_without_user_approval": true
+  }
+}

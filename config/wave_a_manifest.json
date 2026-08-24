@@ -1,0 +1,53 @@
+{
+  "program": "CLEMENT_STUDIO_WAVE_A",
+  "status": "PRE_MERGE_SHADOW_CERTIFICATION",
+  "modules": [
+    {
+      "name": "memory",
+      "repository": "CLEMENT_STUDIO_MEMORY",
+      "branch": "feat/bootstrap-module-mvp",
+      "head": "e6aff01fca19848246e97caf1df9a24840ab234f"
+    },
+    {
+      "name": "verified_response",
+      "repository": "CLEMENT_STUDIO_VERIFIED_RESPONSE",
+      "branch": "feat/bootstrap-module-mvp",
+      "head": "a2196284fd9543c011f313246166f55008176c24"
+    },
+    {
+      "name": "agent_runtime",
+      "repository": "CLEMENT_STUDIO_AGENT_RUNTIME",
+      "branch": "feat/bootstrap-module-mvp",
+      "head": "4a35c2e28c91c6816f27f434e463ba00115a00bd"
+    },
+    {
+      "name": "omniroute",
+      "repository": "CLEMENT_STUDIO_OMNIROUTE",
+      "branch": "feat/p1-3-dynamic-agent-routing",
+      "head": "75cc968064f5cd22dd0174e6d44edad59bd68b3d"
+    },
+    {
+      "name": "gpu_manager",
+      "repository": "CLEMENT_STUDIO_GPU_MANAGER",
+      "branch": "feat/bootstrap-module-mvp",
+      "head": "30676a431a8fb8df2bda2c8cb7ece8d80041728c"
+    },
+    {
+      "name": "knowledge_pipeline",
+      "repository": "CLEMENT_STUDIO_KNOWLEDGE_PIPELINE",
+      "branch": "feat/bootstrap-module-mvp",
+      "head": "4adeb9813fe2e93100a2b2d843f999669a1055e1"
+    }
+  ],
+  "required_markers": [
+    "WAVE_A_MEMORY=PASS",
+    "WAVE_A_VERIFIED_RESPONSE=PASS",
+    "WAVE_A_GPU_LIVE=PASS",
+    "WAVE_A_OMNIROUTE=PASS",
+    "WAVE_A_AGENT_RUNTIME_LIVE=PASS",
+    "WAVE_A_KNOWLEDGE=PASS",
+    "WAVE_A_FAIL_CLOSED=PASS",
+    "WAVE_A_GLOBAL=PASS"
+  ],
+  "forbidden_operations": ["merge", "tag", "release"]
+}

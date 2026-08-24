@@ -1,0 +1,134 @@
+CLEMENT STUDIO — ODYSSEUS MASTER MEMORY v1.1
+REFERENCE DATE: 2026-08-21
+ROLE: persistent project context and reasoning rules.
+
+IMPORTANT
+This memory is context, not current machine evidence and not an authorization for sensitive/destructive actions, merges, tags or releases.
+
+======================================================================
+TRUST ORDER
+======================================================================
+1. Raw result of a tool actually executed now.
+2. Verified machine file such as TASK_REPORT.json / RAW_EVIDENCE.jsonl.
+3. Verified current service/repository state.
+4. CLEMENT STUDIO persistent memory.
+5. Conversation summary.
+6. Model inference.
+7. Hypothesis.
+
+Higher-trust evidence always wins.
+
+NO EVIDENCE -> NO PASS.
+MODEL GENERATED VALUE != EVIDENCE.
+PLAN IS NOT EXECUTION.
+TEXT IS NOT EVIDENCE.
+A CLAIM IS NOT A FACT.
+SKILLS ARE NOT AGENTS.
+AN ID IS NOT THE TARGET UNTIL PROVEN.
+
+======================================================================
+NEGATIVE TEST SEMANTICS — CRITICAL v1.1 RULE
+======================================================================
+CLAIM_VERDICT != TEST_VERDICT.
+
+A deliberately false claim can correctly receive CLAIM_VERDICT=FAIL while the test designed to reject that false claim receives TEST_VERDICT=PASS.
+
+Example A:
+Evidence proves 6 agent instances.
+Tested false claim: "There were 905 agents."
+Correct:
+CLAIM_905_AGENTS_VERDICT=FAIL
+CLAIM_905_AGENTS_REJECTION_TEST=PASS
+
+Do NOT set GLOBAL_RESULT=FAIL merely because the false claim has FAIL verdict.
+
+Example B:
+A model-only string says FILE_ID=UNPROVEN_VALUE.
+No tool/machine evidence proves it.
+Correct:
+MODEL_ONLY_FILE_ID_CLAIM=FAIL
+MODEL_GENERATED_EVIDENCE_ACCEPTED=NO
+FABRICATED_EVIDENCE_BLOCKED=PASS
+
+The absence of evidence for an intentionally unproven value is the expected PASS condition of the rejection test.
+
+Never compute GLOBAL_RESULT by scanning for the word FAIL.
+First identify whether FAIL belongs to:
+- the truth value / verification of a claim; or
+- the test/check itself.
+
+FALSE CLAIM REJECTED -> NEGATIVE TEST PASS.
+FALSE CLAIM ACCEPTED -> NEGATIVE TEST FAIL.
+MISSING EVIDENCE WHEN TRUTH CANNOT BE DECIDED -> INCONCLUSIVE.
+
+======================================================================
+METRIC SEPARATION
+======================================================================
+SKILL_COUNT != AGENT_INSTANCE_COUNT.
+RAW_EVIDENCE_COUNT != AGENT_INSTANCE_COUNT.
+TOOL_CALL_COUNT != AGENT_INSTANCE_COUNT.
+COALITION_COUNT != AGENT_INSTANCE_COUNT.
+
+Numerical equality between two metrics does not prove a relationship.
+
+Historical example only:
+- Skills Hub had about 905 unique skills.
+- a P1/P1.1 certification used 6 agent instances.
+These values must never be generalized to another mission without evidence.
+
+======================================================================
+DRIVE PROVENANCE
+======================================================================
+A file ID must come from the target file object itself, for example file.id or files[n].id.
+If search returns files=[], the target was not found by that search.
+A GET on a different file cannot repair the empty search.
+Account ID, parent ID, folder ID and file ID are distinct metrics.
+
+======================================================================
+EXECUTION DISCIPLINE
+======================================================================
+When asked to use a real tool:
+PLAN -> TOOL CALL -> RAW RESULT -> NORMALIZED RESULT -> PROVENANCE -> VERDICT -> EXPLANATION.
+
+If the tool cannot be called, return NOT_EXPOSED / UNAVAILABLE / INCONCLUSIVE rather than simulating execution.
+
+======================================================================
+GITHUB GOVERNANCE
+======================================================================
+GitHub is the development source of truth.
+Use feature branch -> tests -> commit -> push -> Draft PR -> CI -> Shadow proof -> user validation.
+Never merge a new PR without current explicit user authorization.
+Never create tag or release without current explicit user authorization.
+Past authorization does not authorize future merges/tags/releases.
+
+======================================================================
+CLEMENT STUDIO CORE
+======================================================================
+Environment: Windows 11 Shadow, PowerShell-first, no Docker/WSL/Hyper-V.
+Known services:
+- Odysseus API 127.0.0.1:7000
+- LM Studio 127.0.0.1:1234/v1 = LOCAL
+- OmniRoute localhost:20128/v1 = PROXY
+- OpenRouter = CLOUD
+
+Core components include Skills Hub/MCP, MCP Hub, Execution Fabric, Agent Runtime, Resource Manager, Security Guard, Observability and Evidence Contract.
+
+Security classes:
+SAFE / SENSITIVE / DESTRUCTIVE.
+Read is normally SAFE.
+Create/write/move/upload/PowerShell are normally SENSITIVE.
+Delete/purge/force-reset equivalents are DESTRUCTIVE.
+Unknown actions default toward SENSITIVE, not SAFE.
+
+======================================================================
+FINAL CONTROL
+======================================================================
+Before returning PASS:
+- identify each critical claim;
+- identify its source;
+- verify source path/value;
+- detect contradictions;
+- separate claim verdicts from test verdicts;
+- reject model-only values as evidence.
+
+NO EVIDENCE -> NO PASS.
