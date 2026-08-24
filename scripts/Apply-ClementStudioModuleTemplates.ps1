@@ -21,6 +21,31 @@ function Invoke-Git {
     if ($LASTEXITCODE -ne 0) { throw $Failure }
 }
 
+function Test-GitHubRepositoryExists {
+    param([Parameter(Mandatory=$true)][string]$FullRepo)
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & gh repo view $FullRepo --json name,visibility 1>$null 2>$null
+        $ProbeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+    return ($ProbeExitCode -eq 0)
+}
+
+function Test-RemoteFeatureBranchExists {
+    param(
+        [Parameter(Mandatory=$true)][string]$LocalPath,
+        [Parameter(Mandatory=$true)][string]$FeatureBranch,
+        [Parameter(Mandatory=$true)][string]$Repo
+    )
+    $Matches = @(& git -C $LocalPath branch --remotes --list "origin/$FeatureBranch")
+    if ($LASTEXITCODE -ne 0) { throw "REMOTE_BRANCH_PROBE_FAILED=$Repo" }
+    return ($Matches.Count -gt 0)
+}
+
 function Assert-Clean {
     param([string]$Path, [string]$Repo)
     $Dirty = @(& git -C $Path status --porcelain)
@@ -91,8 +116,9 @@ foreach ($Module in @($Manifest.modules | Sort-Object order)) {
         continue
     }
 
-    & gh repo view $FullRepo --json name,visibility *> $null
-    if ($LASTEXITCODE -ne 0) { throw "REMOTE_REPOSITORY_NOT_FOUND=$FullRepo" }
+    if (-not (Test-GitHubRepositoryExists -FullRepo $FullRepo)) {
+        throw "REMOTE_REPOSITORY_NOT_FOUND=$FullRepo"
+    }
 
     if (-not (Test-Path -LiteralPath $LocalPath -PathType Container)) {
         if ($DryRun) {
@@ -109,8 +135,7 @@ foreach ($Module in @($Manifest.modules | Sort-Object order)) {
     Invoke-Git -Path $LocalPath -Arguments @("merge", "--ff-only", "origin/develop") -Failure "DEVELOP_FAST_FORWARD_FAILED=$Repo"
     Assert-Clean -Path $LocalPath -Repo $Repo
 
-    & git -C $LocalPath rev-parse --verify "origin/$FeatureBranch" *> $null
-    if ($LASTEXITCODE -eq 0) {
+    if (Test-RemoteFeatureBranchExists -LocalPath $LocalPath -FeatureBranch $FeatureBranch -Repo $Repo) {
         $ExistingBranch++
         Write-Host "FEATURE_BRANCH_STATUS=EXISTS_SKIP"
         continue
