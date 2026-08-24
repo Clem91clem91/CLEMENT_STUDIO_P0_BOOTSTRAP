@@ -33,6 +33,27 @@ function Invoke-Git {
     if ($LASTEXITCODE -ne 0) { throw $Failure }
 }
 
+function Test-GitHubRepositoryExists {
+    param([Parameter(Mandatory=$true)][string]$FullRepo)
+
+    # Windows PowerShell 5.1 can promote native STDERR to a terminating
+    # NativeCommandError when ErrorActionPreference=Stop. A missing repo is
+    # an expected probe result here, not a script failure, so isolate only
+    # this probe while preserving fail-closed behavior for actual mutations.
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & gh repo view $FullRepo --json name,visibility,defaultBranchRef 1>$null 2>$null
+        $ProbeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+
+    if ($ProbeExitCode -eq 0) { return $true }
+    return $false
+}
+
 function Write-Utf8NoBom {
     param([string]$Path, [string]$Content)
     $Directory = Split-Path -Path $Path -Parent
@@ -241,8 +262,16 @@ function Set-DevelopProtection {
     $Temp = Join-Path $env:TEMP ("clement-protection-" + [guid]::NewGuid().ToString("N") + ".json")
     try {
         [System.IO.File]::WriteAllText($Temp, $Payload, (New-Object System.Text.UTF8Encoding($false)))
-        & gh api --method PUT -H "Accept: application/vnd.github+json" "repos/$FullRepo/branches/develop/protection" --input $Temp
-        if ($LASTEXITCODE -ne 0) {
+        $PreviousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            & gh api --method PUT -H "Accept: application/vnd.github+json" "repos/$FullRepo/branches/develop/protection" --input $Temp 1>$null 2>$null
+            $ProtectionExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $PreviousErrorActionPreference
+        }
+        if ($ProtectionExitCode -ne 0) {
             Write-Host "BRANCH_PROTECTION=$FullRepo PARTIAL reason=GitHub_plan_or_api_restriction"
             return
         }
@@ -289,13 +318,14 @@ foreach ($Module in $Modules) {
     Write-Host "REPOSITORY=$FullRepo"
     Write-Host "PHASE=$($Module.phase)"
 
-    & gh repo view $FullRepo --json name,visibility,defaultBranchRef *> $null
-    if ($LASTEXITCODE -eq 0) {
+    if (Test-GitHubRepositoryExists -FullRepo $FullRepo) {
         $Existing++
         Write-Host "REPOSITORY_STATUS=EXISTS"
         Write-Host "MUTATION=SKIPPED_EXISTING_REPOSITORY"
         continue
     }
+
+    Write-Host "REPOSITORY_STATUS=ABSENT"
 
     if ($DryRun) {
         Write-Host "REPOSITORY_STATUS=WOULD_CREATE"
