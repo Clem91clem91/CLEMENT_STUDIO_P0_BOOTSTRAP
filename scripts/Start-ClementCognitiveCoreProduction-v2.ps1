@@ -2,14 +2,22 @@
     Set-StrictMode -Version Latest
     $ErrorActionPreference = "Stop"
 
-    # V5 recovery runner.
-    # - resolves script path safely under an outer ScriptBlock
-    # - treats missing GitHub repositories/branches as expected control flow
-    # - URL-encodes branch names for GitHub API lookups
-    # - normalizes Initialize-Repository output so native git/gh stdout cannot
-    #   pollute the returned local repository path
-    # - resumes safely when a previous interrupted run already created local
-    #   develop/feature branches
+    # V6 recovery runner.
+    #
+    # Root cause fixed here:
+    # Windows PowerShell 5.1 can surface native stderr as NativeCommandError
+    # while $ErrorActionPreference=Stop, even when git/gh return exit code 0.
+    # The generated script therefore uses:
+    #   - ErrorActionPreference=Continue for native-process streams;
+    #   - PSDefaultParameterValues['*:ErrorAction']=Stop for PowerShell cmdlets.
+    # Native success/failure remains governed by LASTEXITCODE checks.
+    #
+    # Existing recovery protections are preserved:
+    # - safe script-root resolution;
+    # - missing GitHub repositories/branches are expected control flow;
+    # - URL-encoded branch refs;
+    # - interrupted develop/feature branch recovery;
+    # - Initialize-Repository output normalization.
 
     $ScriptRoot = $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($ScriptRoot)) {
@@ -27,8 +35,8 @@
     $PowerShellExe = (Get-Command powershell.exe -ErrorAction Stop).Source
 
     Write-Host "============================================================"
-    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V5"
-    Write-Host "FIX=PATH_OUTPUT_POLLUTION_AND_INTERRUPTED_RUN_RESUME"
+    Write-Host "CLEMENT STUDIO - COGNITIVE CORE PRODUCTION RUNNER V6"
+    Write-Host "FIX=WINDOWS_POWERSHELL_NATIVE_STDERR_HARDENING"
     Write-Host "SCRIPT_ROOT=$ScriptRoot"
     Write-Host "MERGE_ALLOWED=NO"
     Write-Host "TAG_ALLOWED=NO"
@@ -42,13 +50,32 @@
     $Source = Get-Content -LiteralPath $SourceScript -Raw -ErrorAction Stop
 
     # -----------------------------------------------------------------
+    # PATCH 0 - Windows PowerShell 5.1 native stderr hardening.
+    # -----------------------------------------------------------------
+    $OldErrorPolicy = '    $ErrorActionPreference = "Stop"'
+    $NewErrorPolicy = @'
+    # PowerShell cmdlets remain fail-closed, while native commands are judged
+    # by their explicit exit codes. This avoids false NativeCommandError
+    # failures when git/gh write informational text to stderr on Windows
+    # PowerShell 5.1.
+    $ErrorActionPreference = "Continue"
+    $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+'@
+
+    if (-not $Source.Contains($OldErrorPolicy)) {
+        throw "PATCH_ERROR_POLICY_MARKER_NOT_FOUND"
+    }
+
+    $Patched = $Source.Replace($OldErrorPolicy, $NewErrorPolicy.TrimEnd("`r", "`n"))
+
+    # -----------------------------------------------------------------
     # PATCH 1 - safe remote existence probes.
     # -----------------------------------------------------------------
     $StartMarker = "    function Remote-RepoExists {"
     $EndMarker = "    function Initialize-Repository {"
 
-    $StartIndex = $Source.IndexOf($StartMarker, [System.StringComparison]::Ordinal)
-    $EndIndex = $Source.IndexOf($EndMarker, [System.StringComparison]::Ordinal)
+    $StartIndex = $Patched.IndexOf($StartMarker, [System.StringComparison]::Ordinal)
+    $EndIndex = $Patched.IndexOf($EndMarker, [System.StringComparison]::Ordinal)
 
     if ($StartIndex -lt 0) {
         throw "PATCH_START_MARKER_NOT_FOUND"
@@ -76,7 +103,7 @@
 
 '@
 
-    $Patched = $Source.Substring(0, $StartIndex) + $SafeFunctions + $Source.Substring($EndIndex)
+    $Patched = $Patched.Substring(0, $StartIndex) + $SafeFunctions + $Patched.Substring($EndIndex)
 
     # -----------------------------------------------------------------
     # PATCH 2 - interrupted-run-safe develop branch creation.
@@ -149,9 +176,6 @@
 
     # -----------------------------------------------------------------
     # PATCH 4 - normalize Initialize-Repository return value.
-    # PowerShell captures every success-stream object produced by a function.
-    # gh repo create / git operations can therefore precede the intended path.
-    # The function's explicit return is last, so keep only the last object.
     # -----------------------------------------------------------------
     $OldCall = '        $RepoPath = Initialize-Repository -Name $Spec.Name -Description $Spec.Description -FeatureBranch $Spec.Branch'
 
@@ -189,6 +213,60 @@
     }
     $Patched = $Patched.Replace($OldCall, $NewCall.TrimEnd("`r", "`n"))
 
+    # -----------------------------------------------------------------
+    # PATCH 5 - harden Invoke-Git success stream.
+    # Keep git output visible, but do not let it become a function return
+    # value and do not fail merely because git writes informational stderr.
+    # -----------------------------------------------------------------
+    $OldInvokeGit = @'
+    function Invoke-Git {
+        param([string]$RepoPath, [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args)
+        & git -C $RepoPath @Args
+        if ($LASTEXITCODE -ne 0) { throw "GIT_FAILED=$($Args -join ' ') REPO=$RepoPath" }
+    }
+'@
+
+    $NewInvokeGit = @'
+    function Invoke-Git {
+        param([string]$RepoPath, [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args)
+
+        $NativeOutput = @(& git -C $RepoPath @Args 2>&1)
+        $ExitCode = $LASTEXITCODE
+
+        foreach ($Line in $NativeOutput) {
+            if ($null -ne $Line) {
+                Write-Host ([string]$Line)
+            }
+        }
+
+        if ($ExitCode -ne 0) {
+            throw "GIT_FAILED=$($Args -join ' ') REPO=$RepoPath EXIT_CODE=$ExitCode"
+        }
+    }
+'@
+
+    if (-not $Patched.Contains($OldInvokeGit)) {
+        throw "PATCH_INVOKE_GIT_NOT_FOUND"
+    }
+    $Patched = $Patched.Replace($OldInvokeGit, $NewInvokeGit)
+
+    # -----------------------------------------------------------------
+    # PATCH 6 - native-process contract marker.
+    # -----------------------------------------------------------------
+    $ModeMarker = '    Write-Host "MODE=GITHUB_FIRST"'
+    $ModeReplacement = @'
+    Write-Host "MODE=GITHUB_FIRST"
+    Write-Host "WINDOWS_POWERSHELL_NATIVE_POLICY=EXIT_CODE_AUTHORITATIVE"
+    Write-Host "POWERSHELL_CMDLET_POLICY=FAIL_CLOSED"
+'@
+
+    if ($Patched.Contains($ModeMarker)) {
+        $Patched = $Patched.Replace($ModeMarker, $ModeReplacement.TrimEnd("`r", "`n"))
+    }
+
+    # -----------------------------------------------------------------
+    # Write and validate patched script.
+    # -----------------------------------------------------------------
     $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $PatchedScript = Join-Path $env:TEMP "CLEMENT_CognitiveCoreProduction_patched_$Timestamp.ps1"
     $Utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -196,10 +274,12 @@
 
     Write-Host "SOURCE_SCRIPT=$SourceScript"
     Write-Host "PATCHED_SCRIPT=$PatchedScript"
+    Write-Host "PATCH_NATIVE_ERROR_POLICY=PASS"
     Write-Host "PATCH_REMOTE_PROBES=PASS"
     Write-Host "PATCH_DEVELOP_RESUME=PASS"
     Write-Host "PATCH_FEATURE_RESUME=PASS"
     Write-Host "PATCH_RETURN_NORMALIZATION=PASS"
+    Write-Host "PATCH_INVOKE_GIT=PASS"
 
     $Tokens = $null
     $ParseErrors = $null
@@ -229,14 +309,17 @@
 
     if ($ExitCode -ne 0) {
         Write-Host "PATCHED_SCRIPT_PRESERVED_FOR_EVIDENCE=$PatchedScript"
-        throw "COGNITIVE_CORE_PRODUCTION_V5=FAIL EXIT_CODE=$ExitCode"
+        throw "COGNITIVE_CORE_PRODUCTION_V6=FAIL EXIT_CODE=$ExitCode"
     }
 
     Remove-Item -LiteralPath $PatchedScript -Force -ErrorAction SilentlyContinue
 
     Write-Host "============================================================"
-    Write-Host "COGNITIVE_CORE_PRODUCTION_V5=PASS"
+    Write-Host "COGNITIVE_CORE_PRODUCTION_V6=PASS"
     Write-Host "SCRIPT_ROOT_RESOLUTION=PASS"
+    Write-Host "WINDOWS_POWERSHELL_NATIVE_STDERR=HARDENED"
+    Write-Host "NATIVE_EXIT_CODE_AUTHORITATIVE=YES"
+    Write-Host "POWERSHELL_CMDLETS_FAIL_CLOSED=YES"
     Write-Host "EXPECTED_MISSING_REPOSITORY_HANDLING=PASS"
     Write-Host "EXPECTED_MISSING_BRANCH_HANDLING=PASS"
     Write-Host "FEATURE_BRANCH_URL_ENCODING=PASS"
