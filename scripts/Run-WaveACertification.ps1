@@ -11,6 +11,21 @@ $ManifestPath = Join-Path $Root "config\wave_a_manifest.json"
 $PythonCertifier = Join-Path $PSScriptRoot "certify_wave_a_shadow.py"
 $Venv = Join-Path $Root ".venv-wave-a"
 
+function Test-IgnorableGeneratedUntracked {
+    param([Parameter(Mandatory=$true)][string]$StatusLine)
+
+    # Only untracked generated Python artifacts are tolerated. Any tracked
+    # modification remains blocking, even when its path resembles a cache.
+    if (-not $StatusLine.StartsWith("?? ")) { return $false }
+
+    $Path = $StatusLine.Substring(3).Replace("\", "/")
+    if ($Path -match '(^|/)__pycache__/') { return $true }
+    if ($Path -match '(^|/)\.pytest_cache/') { return $true }
+    if ($Path -match '(^|/)[^/]+\.egg-info/') { return $true }
+    if ($Path -match '\.py[co]$') { return $true }
+    return $false
+}
+
 Write-Host "============================================================"
 Write-Host "CLEMENT STUDIO - WAVE A SHADOW CERTIFICATION"
 Write-Host "MODE=PINNED_FAIL_CLOSED"
@@ -37,13 +52,32 @@ foreach ($Module in $Manifest.modules) {
         throw "MODULE_LOCAL_REPO_NOT_FOUND=$($Module.repository)"
     }
 
-    $Dirty = @(& git -C $RepoRoot status --porcelain)
+    $Dirty = @(& git -C $RepoRoot status --porcelain --untracked-files=all)
     if ($LASTEXITCODE -ne 0) { throw "GIT_STATUS_FAILED=$($Module.repository)" }
-    if ($Dirty.Count -gt 0) {
+
+    $GeneratedUntracked = @(
+        $Dirty | Where-Object {
+            Test-IgnorableGeneratedUntracked -StatusLine ([string]$_)
+        }
+    )
+    $BlockingDirty = @(
+        $Dirty | Where-Object {
+            -not (Test-IgnorableGeneratedUntracked -StatusLine ([string]$_))
+        }
+    )
+
+    if ($GeneratedUntracked.Count -gt 0) {
+        Write-Host "GENERATED_UNTRACKED_IGNORED=$($Module.repository) COUNT=$($GeneratedUntracked.Count)"
+        $GeneratedUntracked | ForEach-Object { Write-Host "IGNORED_GENERATED=$_" }
+    }
+
+    if ($BlockingDirty.Count -gt 0) {
         Write-Host "DIRTY_REPO=$($Module.repository)"
-        $Dirty | ForEach-Object { Write-Host $_ }
+        $BlockingDirty | ForEach-Object { Write-Host $_ }
         throw "MODULE_WORKTREE_NOT_CLEAN=$($Module.repository)"
     }
+
+    Write-Host "MODULE_WORKTREE_PRECHECK=$($Module.repository) STATUS=PASS"
 
     & git -C $RepoRoot fetch origin --prune
     if ($LASTEXITCODE -ne 0) { throw "GIT_FETCH_FAILED=$($Module.repository)" }
@@ -59,6 +93,21 @@ foreach ($Module in $Manifest.modules) {
         throw "MODULE_HEAD_MISMATCH repo=$($Module.repository) expected=$($Module.head) actual=$Head"
     }
     Write-Host "MODULE_PIN=$($Module.name) HEAD=$Head STATUS=PASS"
+
+    # After synchronization, the repository-specific .gitignore should absorb
+    # generated Python artifacts. Unknown/tracked mutations still fail closed.
+    $PostSyncDirty = @(& git -C $RepoRoot status --porcelain --untracked-files=all)
+    if ($LASTEXITCODE -ne 0) { throw "GIT_POST_SYNC_STATUS_FAILED=$($Module.repository)" }
+    $PostSyncBlocking = @(
+        $PostSyncDirty | Where-Object {
+            -not (Test-IgnorableGeneratedUntracked -StatusLine ([string]$_))
+        }
+    )
+    if ($PostSyncBlocking.Count -gt 0) {
+        Write-Host "POST_SYNC_DIRTY_REPO=$($Module.repository)"
+        $PostSyncBlocking | ForEach-Object { Write-Host $_ }
+        throw "MODULE_POST_SYNC_WORKTREE_NOT_CLEAN=$($Module.repository)"
+    }
 }
 
 if (-not (Test-Path -LiteralPath $Venv -PathType Container)) {
